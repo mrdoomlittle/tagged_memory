@@ -26,6 +26,10 @@ namespace mdl { class tagged_memory
     void dump_into_stack(char const * __memory);
     boost::uint16_t get_mem_addr(char const * __name, bool & __error);
 
+    char * create_mem_tag(char const * __name, char const * __value = "\0");
+ 
+    void add_mem_tag(char const * __name, char const * __value = "\0", size_t __null_space = 0);
+
     /* set the name of the memory */
     void set_mem_name(char const * __current_name, char const * __name, bool & __error);
 
@@ -39,6 +43,8 @@ namespace mdl { class tagged_memory
 
     /* get the name of the memory from a id/address */
     char * get_mem_name(boost::uint16_t __addr, bool & __error);
+
+    char * get_mem_value(char const * __name, bool & __error);
 
     /* get the value of the memory from a id/address */
     char * get_mem_value(boost::uint16_t __addr, bool & __error);
@@ -55,7 +61,7 @@ namespace mdl { class tagged_memory
     /* see if we can find the address passed thru in 'memory_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
     */
-    // NOTE: change to is and not does :|
+    // NOTE: change to 'is' and not 'does' :|
     bool does_mem_addr_ok(boost::uint16_t __addr);
 
     /* insert a char into the memory stack. the memory thats allready there will be shifted forward

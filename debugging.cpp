@@ -17,8 +17,18 @@ int main()
     example.analyze_stack_memory(error);
 
     example.set_mem_name("example_0", "ex_changed", error);
- 
-    example.save_mem_stack_to_file("output.dat"); 
 
+    example.add_mem_tag("test_var", "example", 0);
+ 
+    char * tmp = example.get_mem_value("example_1", error);
+
+    std::cout << tmp << std::endl;
+ 
+    tmp = example.get_mem_value("test_var", error);
+
+    std::cout << tmp << std::endl;
+    
+
+//    example.save_mem_stack_to_file("output.dat");
     example.dump_stack_memory();
 }

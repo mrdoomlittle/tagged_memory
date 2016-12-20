@@ -57,6 +57,92 @@ void mdl::tagged_memory::load_mem_stack_from_file(char const * __file_path)
     }
 }
 
+char * mdl::tagged_memory::create_mem_tag(char const * __name, char const * __value)
+{
+    size_t length_of_name = strlen(__name);
+    size_t length_of_value = strlen(__value);
+
+    size_t total_size = (length_of_name + length_of_value + 3/* this includes the ending, starting and mid seporator*/);
+ 
+    total_size ++;
+
+    static char * tmp = static_cast<char *>(malloc(sizeof(char) * total_size));
+
+    memset(tmp, '\0', total_size);
+
+    size_t current_addr = 0, o = 0, q = 0;
+    tmp[current_addr] = this-> seporator_tags[sp_t::__begin];
+
+    current_addr ++;
+
+    for (size_t i = current_addr; i != (current_addr + length_of_name); i ++) {
+        tmp[i] = __name[o];
+        o ++;
+        q ++;
+    } current_addr += q;
+
+    tmp[current_addr] = this-> seporator_tags[sp_t::__seporator];
+    current_addr ++;
+
+    o = 0; q = 0;
+    for (size_t i = current_addr; i != (current_addr + length_of_value); i ++) {
+        tmp[i] = __value[o];
+        o ++;
+        q ++;
+    } current_addr += q;
+
+    tmp[current_addr] = this-> seporator_tags[sp_t::__end];
+
+    return tmp;
+}
+
+char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error)
+{
+    boost::uint16_t mem_addr = this-> get_mem_addr(__name, __error);
+
+    return this-> get_mem_value(mem_addr, __error);
+}
+
+void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, size_t __null_space)
+{
+    boost::uint16_t insert_addr = 0;
+
+    ublas::vector<boost::array<boost::uint16_t, 2>>
+            ::iterator itor = this-> memory_addrs.end();
+
+    if (this-> memory_addrs.size() != 0) {
+        --itor;
+
+        insert_addr = ((* itor)[1] + 2);
+    }
+   
+    if (this-> debug_logging)
+        printf("adding memory tag into addr %d\n", insert_addr);
+
+    char * tmp = this-> create_mem_tag(__name, __value);
+
+    size_t length_of_mem = strlen(tmp);
+
+    this-> memory_addrs.resize(this-> memory_addrs.size() + 1);
+
+    itor = this-> memory_addrs.end();
+
+    --itor;
+
+    (* itor)[0] = insert_addr;
+    (* itor)[1] = (insert_addr + length_of_mem) - 2;/*this seems to leave the ending tag at the end of the value output, but this fixed might need to look into it*/
+    size_t o = 0;
+    for (size_t i = insert_addr; i != insert_addr + length_of_mem; i ++) {
+        this-> memory_stack(i) = tmp[o];
+
+        o++;
+    }
+
+    std::free(tmp);
+ 
+   //printf("%s\n", this-> create_mem_tag("test", "test")); 
+ 
+}
 
 void mdl::tagged_memory::save_mem_stack_to_file(char const * __file_path)
 {
@@ -142,8 +228,9 @@ char * mdl::tagged_memory::get_mem_name(boost::uint16_t __addr, bool & __error)
     size_t length_of_name = get_mem_name_len(__addr, __error);
 
     if (this-> debug_logging)
-        printf("\x1B[37mlen of mem name at addr %d is %ld bytes\x1B[0m\n", __addr, length_of_name);
+        printf("\x1B[37mlen of mem name at addr %d is %ld bytes\x1B[0m\n", __addr, length_of_name); 
 
+    // havent tested this 
     static char * __name = static_cast<char *>(malloc(length_of_name));
 
     size_t o = 0;
@@ -399,8 +486,9 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error)
  
     size_t length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
 
-    length_of_value ++;
-    static char * tmp = static_cast<char *>(malloc(length_of_value + 8));
+    length_of_value += 2;
+    static char * tmp = static_cast<char *>(malloc(length_of_value));
+    memset(tmp, '\0', length_of_value);
 
     size_t o = 0;
     for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1); i != (* itor)[1] + 1; i++ ) {
