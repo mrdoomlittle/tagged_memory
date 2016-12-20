@@ -16,21 +16,15 @@ int main()
 
     example.analyze_stack_memory(error);
 
-    example.set_mem_name("example_0", "ex_changed", error);
+    example.add_mem_tag("test_var", "i_love_programming", 0, error);
 
-    example.add_mem_tag("test_var", "true", 0);
- 
-    char * tmp = example.get_mem_value("example_1", error);
+    example.set_mem_name("example_1", "by_mrdoomlittle", error);
+   
+    std::cout << "----------> " << example.get_mem_value("test_var", error) << std::endl;  
 
-    std::cout << tmp << std::endl;
- 
-    tmp = example.get_mem_value("test_var", error);
 
-    std::cout << tmp << std::endl;
-    
-
-//    example.save_mem_stack_to_file("output.dat");
+    //example.save_mem_stack_to_file("output.dat");
     example.dump_stack_memory();
 
-    std::cout << example.compare_mem_value("ex_changed", "test_var", error) << std::endl;
+    //std::cout << example.compare_mem_value("example_1", "test_var", error) << std::endl;
 }

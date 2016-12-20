@@ -22,10 +22,24 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
         this-> memory_stack(i) = '\0';
 }
 
+bool mdl::tagged_memory::does_mem_name_exist(char const * __name, bool & __error)
+{
+    ublas::vector<boost::array<boost::uint16_t, 2>>
+        ::iterator itor = this-> memory_addrs.begin();
+
+    for (; itor != this-> memory_addrs.end(); ++itor)
+    {
+        bool re = this-> compare_strings(__name, this-> get_mem_name((* itor)[0], __error));
+        if (re) return true;
+    }
+
+    return false;
+}
+
 bool mdl::tagged_memory::compare_mem_value(char const * __name_0, char const * __name_1, bool & __error)
 {
-  
-
+    // get mem value returns char * and not char const *
+    // i dont know what errors it might cause
     return this-> compare_strings(
         this-> get_mem_value(__name_0, __error),
         this-> get_mem_value(__name_1, __error)
@@ -130,8 +144,13 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error)
     return this-> get_mem_value(mem_addr, __error);
 }
 
-void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, size_t __null_space)
+void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool & __error)
 {
+    if (this-> does_mem_name_exist(__name, __error)) {
+        printf("cant add memory tag to stack because it allready exists!\n");
+        return;
+    }
+
     boost::uint16_t insert_addr = 0;
 
     ublas::vector<boost::array<boost::uint16_t, 2>>
@@ -390,10 +409,13 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     bool is_same_len = false;
     size_t o = 0, rm = 0;
     bool less = false, grater = false;
+    size_t amount_changed = 0;
+
     for (size_t i = ((* itor)[0] + 1);; i ++) {
         if (this-> memory_stack[rm] == this-> seporator_tags[sp_t::__seporator] && !grater && !is_same_len) {
             this-> insert_into_mem_stack(' ', rm, __error);
             (* itor)[1] ++;
+            amount_changed ++;
             less = true;
         }
 
@@ -404,10 +426,29 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
             if (this-> memory_stack[rm] != this-> seporator_tags[sp_t::__seporator] && !less) {
                 this-> uninsert_from_mem_stack(rm, __error);
                 (* itor)[1] --;
+                amount_changed ++;
                 grater = true;
             } else break;
         } else { o ++; rm = i+1;}
     }
+    
+    if (itor == (this-> memory_addrs.end() - 1) || amount_changed == 0) return;
+
+    ++itor;
+    for (; itor != this-> memory_addrs.end(); ++itor) {
+        if (less) {
+            (* itor)[0] += amount_changed;
+            (* itor)[1] += amount_changed;
+        }
+
+        if (grater) {
+            (* itor)[0] -= amount_changed;
+            (* itor)[1] -= amount_changed;
+        }
+
+    }
+
+
 }
 
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error)
@@ -428,7 +469,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     bool len = false, tsmall = false;
     size_t o = 0, extra = 1, rm = 0;
     bool bypass = strlen(__value) == length_of_value? true : false;
-    
+   
     for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1);; i++ ) {
         if (this-> memory_stack[i] == this-> seporator_tags[sp_t::__begin] && !len && !tsmall) extra ++;
 

@@ -28,7 +28,7 @@ namespace mdl { class tagged_memory
 
     /* check the memory stack for a var thats matches a name
     */
-    bool does_mem_name_exist(char const * __name);
+    bool does_mem_name_exist(char const * __name, bool & __error);
 
     bool compare_strings(char const * __value_0, char const * __value_1);
 
@@ -38,7 +38,7 @@ namespace mdl { class tagged_memory
 
     char * create_mem_tag(char const * __name, char const * __value = "\0");
  
-    void add_mem_tag(char const * __name, char const * __value = "\0", size_t __null_space = 0);
+    void add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool & __error);
 
     /* set the name of the memory */
     void set_mem_name(char const * __current_name, char const * __name, bool & __error);
