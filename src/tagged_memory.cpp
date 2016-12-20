@@ -22,9 +22,36 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
         this-> memory_stack(i) = '\0';
 }
 
+bool mdl::tagged_memory::compare_mem_value(char const * __name_0, char const * __name_1, bool & __error)
+{
+  
+
+    return this-> compare_strings(
+        this-> get_mem_value(__name_0, __error),
+        this-> get_mem_value(__name_1, __error)
+    );
+}
+
+bool mdl::tagged_memory::compare_strings(char const * __value_0, char const * __value_1)
+{
+    size_t len_of_v0 = strlen(__value_0);
+    size_t len_of_v1 = strlen(__value_1);
+    size_t matching_char_c = 0;
+
+    std::cout << __value_0 << ", " << __value_1  << std::endl;
+
+    if (len_of_v0 != len_of_v1) return false;
+
+    for (size_t i = 0; i != len_of_v0; i ++)
+        if (__value_0[i] == __value_1[i]) matching_char_c ++;
+
+    if (matching_char_c == len_of_v0) return true;
+    return false;
+}
+
 char * mdl::tagged_memory::dump_stack_memory()
 {
-    static char * re = static_cast<char *>(malloc(this-> memory_stack.size()));
+    char * re = static_cast<char *>(malloc(this-> memory_stack.size()));
 
     for (size_t i = 0; i != this-> memory_stack.size(); i ++) {
         if (this-> memory_stack[i] == '\0') break;
@@ -66,7 +93,7 @@ char * mdl::tagged_memory::create_mem_tag(char const * __name, char const * __va
  
     total_size ++;
 
-    static char * tmp = static_cast<char *>(malloc(sizeof(char) * total_size));
+    char * tmp = static_cast<char *>(malloc(sizeof(char) * total_size));
 
     memset(tmp, '\0', total_size);
 
@@ -166,7 +193,6 @@ void mdl::tagged_memory::save_mem_stack_to_file(char const * __file_path)
     ofile << memory;
     ofile.close();
 
-    /* free the memory as it was created as static value */
     std::free(memory);
 }
 
@@ -231,7 +257,7 @@ char * mdl::tagged_memory::get_mem_name(boost::uint16_t __addr, bool & __error)
         printf("\x1B[37mlen of mem name at addr %d is %ld bytes\x1B[0m\n", __addr, length_of_name); 
 
     // havent tested this 
-    static char * __name = static_cast<char *>(malloc(length_of_name));
+    char * __name = static_cast<char *>(malloc(length_of_name));
 
     size_t o = 0;
     for (size_t i = (__addr +1); i != (__addr +1) + length_of_name; i ++) {
@@ -487,7 +513,7 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error)
     size_t length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
 
     length_of_value += 2;
-    static char * tmp = static_cast<char *>(malloc(length_of_value));
+    char * tmp = static_cast<char *>(malloc(length_of_value));
     memset(tmp, '\0', length_of_value);
 
     size_t o = 0;

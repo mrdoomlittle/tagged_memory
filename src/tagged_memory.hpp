@@ -26,6 +26,16 @@ namespace mdl { class tagged_memory
     void dump_into_stack(char const * __memory);
     boost::uint16_t get_mem_addr(char const * __name, bool & __error);
 
+    /* check the memory stack for a var thats matches a name
+    */
+    bool does_mem_name_exist(char const * __name);
+
+    bool compare_strings(char const * __value_0, char const * __value_1);
+
+    /* compare the value of 2 pices of memory
+    */
+    bool compare_mem_value(char const * __name_0, char const * __name_1, bool & __error);
+
     char * create_mem_tag(char const * __name, char const * __value = "\0");
  
     void add_mem_tag(char const * __name, char const * __value = "\0", size_t __null_space = 0);
