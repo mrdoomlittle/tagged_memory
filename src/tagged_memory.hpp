@@ -24,6 +24,8 @@ namespace mdl { class tagged_memory
     char * dump_stack_memory();
     void analyze_stack_memory(bool & __error);
     void dump_into_stack(char const * __memory);
+    void dump_into_stack(ublas::vector<char> __memory);
+
     boost::uint16_t get_mem_addr(char const * __name, bool & __error);
 
     /* check the memory stack for a var thats matches a name

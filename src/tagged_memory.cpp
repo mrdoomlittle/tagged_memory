@@ -43,7 +43,7 @@ bool mdl::tagged_memory::compare_mem_value(char const * __name_0, char const * _
     return this-> compare_strings(
         this-> get_mem_value(__name_0, __error),
         this-> get_mem_value(__name_1, __error)
-    );
+    ) ;
 }
 
 bool mdl::tagged_memory::compare_strings(char const * __value_0, char const * __value_1)
@@ -66,7 +66,7 @@ bool mdl::tagged_memory::compare_strings(char const * __value_0, char const * __
 char * mdl::tagged_memory::dump_stack_memory()
 {
     char * re = static_cast<char *>(malloc(this-> memory_stack.size()));
-
+    memset(re, '\0', this-> memory_stack.size());
     for (size_t i = 0; i != this-> memory_stack.size(); i ++) {
         if (this-> memory_stack[i] == '\0') break;
         re[i] = this-> memory_stack[i];
@@ -354,6 +354,9 @@ boost::uint16_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __e
             }
 
             if (this-> memory_stack[i] == this-> seporator_tags[sp_t::__seporator]) {
+                /* this was added in to fix a placment error but if any errors occur after this edit it might be because of this*/
+                mem_match_count = 0;
+                name_char_pos = 0;
                 break;    
             }
             
@@ -648,6 +651,24 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
 
     if (this-> debug_logging)
         printf("\x1B[36mfinished analysing.\x1B[0m\n");
+}
+
+void mdl::tagged_memory::dump_into_stack(ublas::vector<char> __memory)
+{
+    ublas::vector<boost::array<boost::uint16_t, 2>>
+        ::iterator itor = this-> memory_addrs.begin();
+
+    boost::uint16_t stack_begin_address = 0;
+
+    if (this-> memory_addrs.size() != 0) {
+        itor += this-> memory_addrs.size() - 1;
+        stack_begin_address = (* itor)[1] + 1;
+    }
+
+    size_t length_of_string = __memory.size();
+
+    for (size_t i = stack_begin_address; i != length_of_string + stack_begin_address; i ++)
+        this-> memory_stack(i) = __memory[i - stack_begin_address];
 }
 
 void mdl::tagged_memory::dump_into_stack(char const * __memory)
