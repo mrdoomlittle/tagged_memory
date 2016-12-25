@@ -268,9 +268,11 @@ char * mdl::tagged_memory::get_mem_name(boost::uint16_t __addr, bool & __error)
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
 
-    itor += find_mem_addr_it_pos(__addr, __error); 
+    std::size_t ad = find_mem_addr_it_pos(__addr, __error); 
 
-    size_t length_of_name = get_mem_name_len(__addr, __error);
+    itor += ad;
+
+    std::size_t length_of_name = get_mem_name_len(__addr, __error);
 
     if (this-> debug_logging)
         printf("\x1B[37mlen of mem name at addr %d is %ld bytes\x1B[0m\n", __addr, length_of_name); 
@@ -278,8 +280,13 @@ char * mdl::tagged_memory::get_mem_name(boost::uint16_t __addr, bool & __error)
     // havent tested this 
     char * __name = static_cast<char *>(malloc(length_of_name));
 
-    size_t o = 0;
-    for (size_t i = (__addr +1); i != (__addr +1) + length_of_name; i ++) {
+    std::size_t reduction = 0;
+
+    if (this-> infomation[ad].is_list_type)
+        reduction = this-> infomation[ad].len_of_tag;
+
+    std::size_t o = 0;
+    for (std::size_t i = (__addr + 1) ; i != ((__addr + 1) + length_of_name) - reduction; i ++) {
         __name[o] = this-> memory_stack[i];
         o ++; 
     }
@@ -332,12 +339,18 @@ boost::uint16_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __e
 
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
-    
+   
+    std::size_t reduction = 0;
+
     while(mem_addrs_pos != memory_addrs.size())
     {
+        if (this-> infomation[mem_addrs_pos].is_list_type)
+            reduction = this-> infomation[mem_addrs_pos].len_of_tag;
+        else
+            reduction = 0;
         if (this-> debug_logging)
             printf("\x1B[34msearching mem addr book at id %ld for '%s'\x1B[0m\n", mem_addrs_pos, __name);
-        for (size_t i = ((* itor)[0] + 1); i != (* itor)[1]; i ++) {
+        for (size_t i = ((* itor)[0] + 1); i != (* itor)[1] - reduction; i ++) {
             /* if the current memory stack char equals the current name char 
             * then add 1 decamal place
             */
@@ -366,6 +379,14 @@ boost::uint16_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __e
             if ((name_char_pos + 1) == length_of_name) {
 
                 bool is_next_seporator = this-> memory_stack[i + 1] == this-> seporator_tags[sp_t::__seporator]? true : false;
+             
+                /* if it's in a list type format then the next char will not be the nm seporator it will
+                * be the beginning of the list size
+                */ 
+                if (this-> infomation[mem_addrs_pos].is_list_type) {
+                    is_next_seporator = this-> memory_stack[i + 1] == LIST_LEN_BTAG? true : false;
+                }
+
                 if (mem_match_count == length_of_name && is_next_seporator) {
                     if (this-> debug_logging)
                         printf("\x1B[36mmatching success. %ld out of %ld correct.\x1B[0m\n", mem_match_count, length_of_name);
@@ -543,7 +564,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     } 
 }
 
-char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error)
+char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error, boost::uint16_t __list_addr)
 {
     if (! this-> does_mem_addr_ok(__addr)) { __error = true; return '\0';}
     
@@ -571,17 +592,21 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error)
 
 void mdl::tagged_memory::analyze_stack_memory(bool & __error)
 {
+    if (this-> memory_stack.size() == 0) return;
+
     bool found_mem_begin_ts = false;
     bool found_mem_end_ts = false;
     size_t extra_mem_begin_tss = 0;
     boost::uint16_t mem_begin_ts_addr = 0;
     boost::uint16_t mem_end_ts_addr = 0;
     size_t mem_stack_pos = 0, waround = 0;
+    bool found_list_begin = false, is_list_type = false;
 
     boost::uint16_t stack_length = this-> memory_stack.size();
 
     float one_precent = (100.00/stack_length); 
- 
+    
+    boost::uint16_t lb_tag_addr = 0, le_tag_addr = 0;
     float finished_precentage = 0.00;
     if (this-> debug_logging)
         printf("\x1B[36manalysing the memory stack, please wait ...\x1B[0m\n");
@@ -614,6 +639,19 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 }
           //  }
         }
+        
+        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_BTAG) {
+            found_list_begin = true;
+            lb_tag_addr = mem_stack_pos; 
+        }
+
+        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG) {
+            if (found_list_begin && mem_stack_pos != lb_tag_addr) {
+                found_list_begin = false;
+                is_list_type = true;
+                le_tag_addr = mem_stack_pos;
+            } 
+        }
 
         if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__end] && mem_stack_pos != mem_begin_ts_addr && found_mem_begin_ts)
         {
@@ -627,7 +665,30 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 mem_end_ts_addr = mem_stack_pos;
                
                 this-> memory_addrs.resize(this-> memory_addrs.size() + 1);
+                this-> infomation.resize(this-> memory_addrs.size() + 1);
 
+                tagged_memory::__o & lo = this-> infomation[this-> memory_addrs.size() -1];
+                
+     
+                lo.is_list_type = true;
+                // the extra 1 is because it startes to cout from 0
+                lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
+
+                char * list_len = static_cast<char *>(malloc((lo.len_of_tag - 2) * sizeof(char)));
+                memset(list_len, '\0', (lo.len_of_tag - 2) * sizeof(char));    
+
+    
+                std::size_t j = 0;
+                for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
+                    list_len[j] = this-> memory_stack[p];
+                    j++;
+                }
+
+                lo.len_of_list = atoi(list_len);
+
+                std::free(list_len);
+                //printf("---------------------> %ld -- %ld\n", lo.len_of_tag, lo.len_of_list);
+    
                 ublas::vector<boost::array<boost::uint16_t, 2>>
                     ::iterator itor = this-> memory_addrs.begin();
             
@@ -637,7 +698,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 (* itor)[1] = mem_end_ts_addr - 1;
 
                 //std::cout << (* itor)[0] << ", " << (* itor)[1] << std::endl;
-
+                is_list_type = false;
                 found_mem_begin_ts = false;
                 found_mem_end_ts = false;
                 extra_mem_begin_tss = 0;

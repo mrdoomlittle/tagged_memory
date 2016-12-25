@@ -9,6 +9,8 @@
 # define MEM_SEP_TAG ':'
 /* this is fore lists 
 */
+# define LIST_LEN_BTAG '['
+# define LIST_LEN_ETAG ']'
 # define MEM_LIST_TAG ','
 # define MEM_CHAR_TAG '/'
 # include <string.h>
@@ -59,7 +61,7 @@ namespace mdl { class tagged_memory
     char * get_mem_value(char const * __name, bool & __error);
 
     /* get the value of the memory from a id/address */
-    char * get_mem_value(boost::uint16_t __addr, bool & __error);
+    char * get_mem_value(boost::uint16_t __addr, bool & __error, boost::uint16_t __list_addr = 0);
 
     /* find the address corresponding to the one passed thru and return the amount
     * that the iterator should be iterated
@@ -93,6 +95,13 @@ namespace mdl { class tagged_memory
 
     boost::array<char, 4> seporator_tags;
     boost::uint16_t used_memory, free_memory;
+    typedef struct {
+        bool is_list_type = false;
+        std::size_t len_of_list = 0;
+        std::size_t len_of_tag = 0;
+    } __o;
+
+    ublas::vector<__o> infomation;
     ublas::vector<boost::array
         <boost::uint16_t, 2>> memory_addrs;
     ublas::vector<char> memory_stack;

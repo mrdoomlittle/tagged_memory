@@ -9,6 +9,10 @@ int main()
     std::cout << "debugging has started" << std::endl;
 
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', ';', '~'}/*tags B/E/S*/, true/*this turns on debugging*/);
+
+    example.dump_into_stack(":hello[4]~1,2,3,4;");
+    example.analyze_stack_memory(error);
+
 /*
       
 //    example.load_mem_stack_from_file("output.dat");
@@ -28,7 +32,7 @@ int main()
   
     //example.set_mem_name("example_1", "by_mrdoomlittle", error);
    
-    //std::cout << "----------> " << example.get_mem_value("test_var", error) << std::endl;  
+    std::cout << "----------> " << example.get_mem_value("hello", error) << std::endl;  
 
 
     //example.save_mem_stack_to_file("output.dat");
