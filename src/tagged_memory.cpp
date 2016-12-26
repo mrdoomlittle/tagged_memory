@@ -22,6 +22,90 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
         this-> memory_stack(i) = '\0';
 }
 
+void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error, boost::uint16_t __list_addr)
+{
+    char * tmp = this-> get_mem_value(__name, __error, 0, true);
+
+    std::size_t nx_length = strlen(__value);
+    
+    boost::uint16_t mem_location = this-> get_mem_addr(__name, __error);
+
+    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+
+    std::size_t curr_length = this-> infomation[ad].list_elength[__list_addr];
+
+    std::size_t change = 0;
+
+    boost::uint16_t start = this-> infomation[ad].list_points[__list_addr];
+    std::size_t tlen = strlen(tmp);
+    boost::uint16_t after_len = 0;
+    std::size_t o = 0;
+    if (curr_length == nx_length) {
+
+        for (std::size_t i = start; i != start + curr_length; i ++) {
+            this-> memory_stack[i] = __value[o];
+            o ++;
+        }
+
+        return;
+    }
+
+    bool g = false, l = false;
+    if (curr_length > nx_length) {
+        change = (curr_length - nx_length);
+        after_len = (tlen - change); 
+        l = true;
+    }
+
+    if (curr_length < nx_length) {
+        change = (nx_length - curr_length);
+        after_len = (tlen + change);
+        g = true;
+    }
+
+    std::cout << "af" << after_len << std::endl;
+
+    char * aft = static_cast<char *>(malloc(after_len * sizeof(char)));
+    memset(aft, '\0', after_len * sizeof(char));
+    std::cout << "change: " << change << std::endl;
+
+    boost::uint16_t nmlen = this-> get_mem_name_len(mem_location, __error);
+    o = 0;
+    bool found_addr = false;
+
+    std::size_t extra = 0;
+    if (g) extra = change;
+    std::size_t j = 0, skip = 0;
+    for (std::size_t i = mem_location + nmlen; i != this-> memory_addrs[ad][1] + extra-1; i ++) {
+        if (i == (start - 1) || found_addr) {
+            aft[o] =  __value[j];
+
+            
+            skip = change;
+            if (found_addr == false && j == 0) found_addr = true;
+            if (j == nx_length - 1) found_addr = false; else j ++;
+        } else {
+            if (g) aft[o] = tmp[o - skip];
+            if (l) aft[o] = tmp[o + skip];
+        }
+        o ++;
+        std::cout << "TICK-" << o-1 << std::endl;
+    }    
+
+    this-> set_mem_value(__name, aft, __error);    
+
+    for (std::size_t i = __list_addr+1; i != this-> infomation[ad].list_points.size(); i ++) {
+        if (g) this-> infomation[ad].list_points(i) += change; 
+        if (l) this-> infomation[ad].list_points(i) -= change;
+    }
+
+    if (g) this-> infomation[ad].list_elength(__list_addr) += change;
+    if (l) this-> infomation[ad].list_elength(__list_addr) -= change;
+
+    std::free(tmp);
+    std::free(aft);
+}
+
 bool mdl::tagged_memory::does_mem_name_exist(char const * __name, bool & __error)
 {
     ublas::vector<boost::array<boost::uint16_t, 2>>
@@ -41,8 +125,8 @@ bool mdl::tagged_memory::compare_mem_value(char const * __name_0, char const * _
     // get mem value returns char * and not char const *
     // i dont know what errors it might cause
     return this-> compare_strings(
-        this-> get_mem_value(__name_0, __error),
-        this-> get_mem_value(__name_1, __error)
+        this-> get_mem_value(__name_0, __error, 0, true),
+        this-> get_mem_value(__name_1, __error, 0, true)
     ) ;
 }
 
@@ -137,11 +221,46 @@ char * mdl::tagged_memory::create_mem_tag(char const * __name, char const * __va
     return tmp;
 }
 
-char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error)
+char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, boost::uint16_t __list_addr, bool __no_list)
 {
     boost::uint16_t mem_addr = this-> get_mem_addr(__name, __error);
 
-    return this-> get_mem_value(mem_addr, __error);
+    if (__no_list == true) {
+        std::size_t ltaddr_b = 0;
+        std::size_t ltaddr_e = 0;
+        bool fblist = false, fe_list = false;
+
+        for (size_t i = 0; i != strlen(__name); i++ ) {
+            if (__name[i] == LIST_LEN_BTAG) {
+                fblist = true;
+                ltaddr_b = i;
+            }
+
+            if (__name[i] == LIST_LEN_ETAG) {
+                if (i != ltaddr_b && fblist) {
+                    fe_list = true;
+                    ltaddr_e = i;
+                }
+            }
+        }
+
+        if (fblist && fe_list) {
+
+            std::size_t list_pointer = 0;
+            char * name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
+
+            //this-> set_mem_value(name, __value, __error, list_pointer);
+
+            char * tmp = this-> get_mem_value(name, __error, list_pointer, false);            
+
+            std::free(name);
+
+            return tmp;
+        }
+
+    }
+
+    return this-> get_mem_value(mem_addr, __error, __list_addr, __no_list);
 }
 
 void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool & __error)
@@ -475,18 +594,74 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
 
 }
 
+char * mdl::tagged_memory::extract_list_addr(char const * __name, 
+    std::size_t & __list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e) {
+    char * list_point = static_cast<char *>(malloc((__ltaddr_e - __ltaddr_b) * sizeof(char)));
+
+    std::size_t _o = 0;
+    for (size_t i = __ltaddr_b+1; i != __ltaddr_e; i++ ) {
+        list_point[_o] = __name[i];
+        _o ++;
+    }
+
+    __list_pointer = atoi(list_point); 
+
+    std::free(list_point);
+
+    char * name = static_cast<char *>(malloc((strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1 * sizeof(char)));
+
+    for (std::size_t i = 0; i != (strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1; i ++) {
+        name[i] = __name[i];
+    }
+
+    return name;
+}
+
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error)
 {
+   
+    std::size_t ltaddr_b = 0;
+    std::size_t ltaddr_e = 0;
+    bool fblist = false, fe_list = false;
+
+    for (size_t i = 0; i != strlen(__name); i++ ) {
+        if (__name[i] == LIST_LEN_BTAG) {
+            fblist = true;
+            ltaddr_b = i;
+        }
+
+        if (__name[i] == LIST_LEN_ETAG) {
+            if (i != ltaddr_b && fblist) {
+                fe_list = true;
+                ltaddr_e = i;
+            }
+        }
+    }
+
+    if (fblist && fe_list) {
+
+        std::size_t list_pointer = 0;
+        char * name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e); 
+  
+        this-> set_mem_value(name, __value, __error, list_pointer);        
+
+        std::free(name);
+
+        return;
+    }
 
     boost::uint16_t mem_location = this-> get_mem_addr(__name, __error);
+
+    bool found_list_indec_tags = false;
 
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
 
-    itor += find_mem_addr_it_pos(mem_location, __error);
+    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+    itor += ad;
 
-    size_t length_of_name = get_mem_name_len(mem_location, __error);
-    
+    size_t length_of_name = get_mem_name_len(mem_location, __error); 
+ 
     size_t length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
  
     length_of_value ++;
@@ -545,8 +720,8 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         change = (before - (* itor)[1]);
 
     if (before < (* itor)[1])
-        change = ((* itor)[1] - before);
-   
+        change = ((* itor)[1] - before);   
+
     if (before == (* itor)[1]) return;
     
     if (itor != this-> memory_addrs.end()) ++itor;
@@ -564,30 +739,55 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     } 
 }
 
-char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error, boost::uint16_t __list_addr)
+char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error, boost::uint16_t __list_addr, bool __no_list)
 {
     if (! this-> does_mem_addr_ok(__addr)) { __error = true; return '\0';}
     
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
 
-    itor += find_mem_addr_it_pos(__addr, __error);
+    std::size_t ad = find_mem_addr_it_pos(__addr, __error);
+    itor += ad;
+    
+    std::size_t length_of_name = get_mem_name_len(__addr, __error);
+    
+    std::size_t length_of_value = 0;
+    if (this-> infomation[ad].is_list_type == false || __no_list) 
+        length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
+    else
+        length_of_value = this-> infomation[ad].list_elength[__list_addr];
    
-    size_t length_of_name = get_mem_name_len(__addr, __error);
- 
-    size_t length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
+    boost::uint16_t list_sep_point = this-> infomation[ad].list_points[__list_addr] + 1;
 
-    length_of_value += 2;
+    if (this-> infomation[ad].is_list_type == false || __no_list)
+        length_of_value += 2;
     char * tmp = static_cast<char *>(malloc(length_of_value));
     memset(tmp, '\0', length_of_value);
 
-    size_t o = 0;
-    for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1); i != (* itor)[1] + 1; i++ ) {
+    std::size_t o = 0;
+    if (this-> infomation[ad].is_list_type || __no_list) {
+       for (std::size_t i = list_sep_point ; i != (list_sep_point + length_of_value) ; i ++ ) {
+            tmp[o] = this-> memory_stack[i];
+            o ++;
+        }
+        return tmp;
+    }
+
+    for (std::size_t i = ((* itor)[0] + 1) + (length_of_name + 1); i != (* itor)[1] + 1; i++ ) {
         tmp[o] = this-> memory_stack[i];
         o ++;
     }
 
     return tmp;
+}
+
+std::size_t mdl::tagged_memory::get_list_length(char const * __name, bool & __error)
+{
+    boost::uint16_t mem_location = this-> get_mem_addr(__name, __error);
+    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+ 
+    if (! this-> infomation[ad].is_list_type) { __error = true; return 0; }
+    return this-> infomation[ad].len_of_list;
 }
 
 void mdl::tagged_memory::analyze_stack_memory(bool & __error)
@@ -601,11 +801,13 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
     boost::uint16_t mem_end_ts_addr = 0;
     size_t mem_stack_pos = 0, waround = 0;
     bool found_list_begin = false, is_list_type = false;
-
+    ublas::vector<boost::uint16_t> list_elength;
+    ublas::vector<boost::uint16_t> list_points;
     boost::uint16_t stack_length = this-> memory_stack.size();
-
+    std::size_t last_lpoint = 0;
     float one_precent = (100.00/stack_length); 
-    
+    boost::uint16_t mid_tag_addr = 0;
+    std::size_t list_sep_tcount = 0;
     boost::uint16_t lb_tag_addr = 0, le_tag_addr = 0;
     float finished_precentage = 0.00;
     if (this-> debug_logging)
@@ -639,10 +841,29 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 }
           //  }
         }
+    
+        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator]) mid_tag_addr = mem_stack_pos;
         
         if (this-> memory_stack[mem_stack_pos] == LIST_LEN_BTAG) {
             found_list_begin = true;
             lb_tag_addr = mem_stack_pos; 
+        }
+     
+        if (found_mem_begin_ts && this-> memory_stack[mem_stack_pos] == MEM_LIST_TAG) {
+            
+            list_elength.resize(list_points.size() + 1);
+
+            list_elength(list_sep_tcount) = (mem_stack_pos - (list_sep_tcount == 0? mid_tag_addr : last_lpoint)) - 1;
+
+  //          std::cout << list_elength[list_sep_tcount] << ", " <<  (list_sep_tcount == 0? mid_tag_addr : mem_stack_pos) << std::endl; 
+   
+            list_points.resize(list_points.size() + 1);
+            
+            list_points(list_sep_tcount) = list_sep_tcount == 0? mid_tag_addr : last_lpoint;
+
+            list_sep_tcount ++;
+
+            last_lpoint = mem_stack_pos;
         }
 
         if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG) {
@@ -674,10 +895,19 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 // the extra 1 is because it startes to cout from 0
                 lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
 
+                list_elength.resize(list_points.size() + 1);
+                list_points.resize(list_points.size() + 1);
+
+                list_elength(list_sep_tcount) = (mem_stack_pos - last_lpoint) - 1;
+                list_points(list_sep_tcount) = last_lpoint;
+
+                //lo.list_points.resize(sep_points.size());
+                lo.list_points.swap(list_points);
+                lo.list_elength.swap(list_elength); 
+
                 char * list_len = static_cast<char *>(malloc((lo.len_of_tag - 2) * sizeof(char)));
                 memset(list_len, '\0', (lo.len_of_tag - 2) * sizeof(char));    
-
-    
+ 
                 std::size_t j = 0;
                 for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
                     list_len[j] = this-> memory_stack[p];
@@ -703,6 +933,12 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 found_mem_end_ts = false;
                 extra_mem_begin_tss = 0;
                 waround = 0;
+                list_points.clear();
+                list_points.resize(0);
+                list_elength.clear();
+                list_elength.resize(0);
+                last_lpoint = 0;
+                 
             }
         }
 

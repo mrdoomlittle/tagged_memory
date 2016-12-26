@@ -10,31 +10,21 @@ int main()
 
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', ';', '~'}/*tags B/E/S*/, true/*this turns on debugging*/);
 
-    example.dump_into_stack(":hello[4]~1,2,3,4;");
+    example.dump_into_stack(":hello[4]~TO_ALL,TO_ME,TO_WILL,TO_KNOWN;");
     example.analyze_stack_memory(error);
 
-/*
-      
+     
 //    example.load_mem_stack_from_file("output.dat");
-    ublas::vector<char> in;
-    in.resize(5);
-
-    in[0] = ':';
-    in[1] = 'a';
-    in[2] = '~';
-    in[3] = 'b';
-    in[4] = ';';
-
-    example.dump_into_stack(in);
-
-    example.analyze_stack_memory(error);
-*/
+ 
+    example.set_mem_value("hello[0]", "HELLO_WORLD", error);
   
     //example.set_mem_name("example_1", "by_mrdoomlittle", error);
-   
-    std::cout << "----------> " << example.get_mem_value("hello", error) << std::endl;  
-
-
+  
+    for (std::size_t i = 0; i != example.get_list_length("hello", error); i ++) 
+        std::cout << "----------> " << example.get_mem_value("hello", error, i, false) << std::endl;  
+  
+    std::cout << "----------> " << example.get_mem_value("hello[0]", error, 0, true) << std::endl;
+ 
     //example.save_mem_stack_to_file("output.dat");
     example.dump_stack_memory();
 

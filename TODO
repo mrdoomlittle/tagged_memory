@@ -1,3 +1,12 @@
+sorry for my english :(
+
 ... make the add_mem_tag function check if mem name exists
 	.add a list type, so the peogram can store lists
 	.storing a int as a char array uses to much memory <- fix this
+	.storing stuff in a ordered fashion is inefficient, make it index the chars by address
+	and then store them in a vector in orderd fashion e.g.
+	ublas::vector<ublas::vector<int>> elements;
+	elements(0) will eqel somthing like this
+	{ addr_0, addr_1, addr_2 } when the addrs are resolved somthing like this { A, B, C }
+	but the data will be stored in a incrementally fashion, down side is that it wont be readable when dumped.
+	the upside is when deleteing somthing it can be replaced by somthing else
