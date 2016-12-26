@@ -225,7 +225,7 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, bo
 {
     boost::uint16_t mem_addr = this-> get_mem_addr(__name, __error);
 
-    if (__no_list == true) {
+    if (__no_list == false) {
         std::size_t ltaddr_b = 0;
         std::size_t ltaddr_e = 0;
         bool fblist = false, fe_list = false;
@@ -259,7 +259,7 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, bo
         }
 
     }
-
+  
     return this-> get_mem_value(mem_addr, __error, __list_addr, __no_list);
 }
 
@@ -756,8 +756,10 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
         length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
     else
         length_of_value = this-> infomation[ad].list_elength[__list_addr];
-   
-    boost::uint16_t list_sep_point = this-> infomation[ad].list_points[__list_addr] + 1;
+ 
+    boost::uint16_t list_sep_point = 0; 
+    if (this-> infomation[ad].is_list_type)
+        list_sep_point = this-> infomation[ad].list_points[__list_addr] + 1;
 
     if (this-> infomation[ad].is_list_type == false || __no_list)
         length_of_value += 2;
@@ -765,7 +767,7 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
     memset(tmp, '\0', length_of_value);
 
     std::size_t o = 0;
-    if (this-> infomation[ad].is_list_type || __no_list) {
+    if (this-> infomation[ad].is_list_type) {
        for (std::size_t i = list_sep_point ; i != (list_sep_point + length_of_value) ; i ++ ) {
             tmp[o] = this-> memory_stack[i];
             o ++;
@@ -891,32 +893,37 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 tagged_memory::__o & lo = this-> infomation[this-> memory_addrs.size() -1];
                 
      
-                lo.is_list_type = true;
-                // the extra 1 is because it startes to cout from 0
-                lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
+                lo.is_list_type = is_list_type;
+                if (lo.is_list_type) {
+                    // the extra 1 is because it startes to cout from 0
+                    lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
 
-                list_elength.resize(list_points.size() + 1);
-                list_points.resize(list_points.size() + 1);
+               
+                    list_elength.resize(list_points.size() + 1);
+                    list_points.resize(list_points.size() + 1);
 
-                list_elength(list_sep_tcount) = (mem_stack_pos - last_lpoint) - 1;
-                list_points(list_sep_tcount) = last_lpoint;
+                    list_elength(list_sep_tcount) = (mem_stack_pos - last_lpoint) - 1;
+                    list_points(list_sep_tcount) = last_lpoint;
+                
 
-                //lo.list_points.resize(sep_points.size());
-                lo.list_points.swap(list_points);
-                lo.list_elength.swap(list_elength); 
-
-                char * list_len = static_cast<char *>(malloc((lo.len_of_tag - 2) * sizeof(char)));
-                memset(list_len, '\0', (lo.len_of_tag - 2) * sizeof(char));    
+                    //lo.list_points.resize(sep_points.size());
+                    lo.list_points.swap(list_points);
+                    lo.list_elength.swap(list_elength); 
+                
+                    char * list_len = static_cast<char *>(malloc((lo.len_of_tag - 2) * sizeof(char)));
+                    memset(list_len, '\0', (lo.len_of_tag - 2) * sizeof(char));    
  
-                std::size_t j = 0;
-                for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
-                    list_len[j] = this-> memory_stack[p];
-                    j++;
+                    std::size_t j = 0;
+                    for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
+                        list_len[j] = this-> memory_stack[p];
+                        j++;
+                    }
+
+                    lo.len_of_list = atoi(list_len);
+
+                    std::free(list_len);
                 }
 
-                lo.len_of_list = atoi(list_len);
-
-                std::free(list_len);
                 //printf("---------------------> %ld -- %ld\n", lo.len_of_tag, lo.len_of_list);
     
                 ublas::vector<boost::array<boost::uint16_t, 2>>
