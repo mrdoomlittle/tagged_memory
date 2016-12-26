@@ -10,9 +10,10 @@ int main()
 
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', ';', '~'}/*tags B/E/S*/, true/*this turns on debugging*/);
 
-    example.dump_into_stack(":hello~TO_ALL_TO_ME_TO_WILL_TO_KNOWN;");
+    example.dump_into_stack(":HOHO~B;:hello~TO_ALL_TO_ME_TO_WILL_TO_KNOWN;");
     example.analyze_stack_memory(error);
 
+    e
     example.set_mem_value("hello", "HELLO_WORLD", error);
 
     std::cout << example.get_mem_value("hello", error, 0, true) << std::endl;
