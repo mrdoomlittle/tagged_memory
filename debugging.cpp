@@ -17,7 +17,11 @@ int main()
    // example.set_mem_value("hello[0]", "HELLO_WORLD", error);
 
     std::cout << example.get_mem_value("HOHO", error, 0, true) << std::endl;
+    example.set_mem_value("HOHO", "MOMO", error);
+
     std::cout << example.get_mem_value("hello[0]", error, 0, true) << std::endl;    
+
+    
  
 //    example.load_mem_stack_from_file("output.dat");
  

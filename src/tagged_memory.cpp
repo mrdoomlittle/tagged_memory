@@ -544,7 +544,9 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
 
-    itor += find_mem_addr_it_pos(mem_location, __error);
+    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+    //MARK
+    itor += ad;
 
     size_t len_of_name = this-> get_mem_name_len(mem_location, __error);
     
@@ -577,19 +579,29 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     }
     
     if (itor == (this-> memory_addrs.end() - 1) || amount_changed == 0) return;
+    
+    std::size_t cid = (ad + 1);
 
     ++itor;
     for (; itor != this-> memory_addrs.end(); ++itor) {
+        if (this-> infomation[cid].is_list_type) {
+            for (std::size_t i = 0; i != this-> infomation[cid].list_points.size(); i ++) {      
+                if (grater) this-> infomation[cid].list_points(i) -= amount_changed;
+                if (less) this-> infomation[cid].list_points(i) += amount_changed;
+            }
+        }
+
         if (less) {
             (* itor)[0] += amount_changed;
             (* itor)[1] += amount_changed;
+            
         }
 
         if (grater) {
             (* itor)[0] -= amount_changed;
             (* itor)[1] -= amount_changed;
         }
-
+        cid ++;
     }
 
 
@@ -719,27 +731,43 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     (* itor)[1] = ((* itor)[0] + strlen(__value) + (length_of_name + 1));
 
     size_t change = 0;
-    
-    if (before > (* itor)[1])
-        change = (before - (* itor)[1]);
+    bool g = false, l = false;
 
-    if (before < (* itor)[1])
+    if (before > (* itor)[1]) {
+        change = (before - (* itor)[1]);
+        l = true;
+    }
+
+    if (before < (* itor)[1]) {
         change = ((* itor)[1] - before);   
+        g = true;
+    }
 
     if (before == (* itor)[1]) return;
     
+    std::size_t cid = (ad + 1);
+
     if (itor != this-> memory_addrs.end()) ++itor;
     for (; itor != this-> memory_addrs.end(); ++itor)
     {
-        if (before > (* itor)[1]) {
+        if (this-> infomation[cid].is_list_type) {
+            for (std::size_t i = 0; i != this-> infomation[cid].list_points.size(); i ++) {            
+                if (g) this-> infomation[cid].list_points(i) += change;
+                if (l) this-> infomation[cid].list_points(i) -= change;
+            }
+        }
+
+        if (l) {
             (* itor)[0] -= change;
             (* itor)[1] -= change;
         }
 
-        if (before < (* itor)[1]) {
+        if (g) {
             (* itor)[0] += change;
             (* itor)[1] += change;
         }
+
+        cid ++;
     } 
 }
 
