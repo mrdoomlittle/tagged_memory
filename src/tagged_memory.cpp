@@ -225,7 +225,8 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, bo
 {
     boost::uint16_t mem_addr = this-> get_mem_addr(__name, __error);
 
-    if (__no_list == false) {
+    if (__no_list == true) {
+        
         std::size_t ltaddr_b = 0;
         std::size_t ltaddr_e = 0;
         bool fblist = false, fe_list = false;
@@ -245,10 +246,10 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, bo
         }
 
         if (fblist && fe_list) {
-
+        
             std::size_t list_pointer = 0;
             char * name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
-
+          
             //this-> set_mem_value(name, __value, __error, list_pointer);
 
             char * tmp = this-> get_mem_value(name, __error, list_pointer, false);            
@@ -608,7 +609,10 @@ char * mdl::tagged_memory::extract_list_addr(char const * __name,
 
     std::free(list_point);
 
-    char * name = static_cast<char *>(malloc((strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1 * sizeof(char)));
+    std::size_t length_of_name = ((strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1) * sizeof(char);
+
+    char * name = static_cast<char *>(malloc(length_of_name));
+    memset(name, '\0', length_of_name);
 
     for (std::size_t i = 0; i != (strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1; i ++) {
         name[i] = __name[i];
@@ -750,7 +754,7 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
     itor += ad;
     
     std::size_t length_of_name = get_mem_name_len(__addr, __error);
-    
+
     std::size_t length_of_value = 0;
     if (this-> infomation[ad].is_list_type == false || __no_list) 
         length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
@@ -763,17 +767,21 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
 
     if (this-> infomation[ad].is_list_type == false || __no_list)
         length_of_value += 2;
-    char * tmp = static_cast<char *>(malloc(length_of_value));
-    memset(tmp, '\0', length_of_value);
+
+    char * tmp = static_cast<char *>(malloc(length_of_value+1 * sizeof(char)));
+    memset(tmp, '\0', length_of_value + 1 * sizeof(char));
+
 
     std::size_t o = 0;
-    if (this-> infomation[ad].is_list_type) {
+    if (this-> infomation[ad].is_list_type || __no_list == false) {
        for (std::size_t i = list_sep_point ; i != (list_sep_point + length_of_value) ; i ++ ) {
             tmp[o] = this-> memory_stack[i];
             o ++;
         }
+        
         return tmp;
     }
+    // NOTE: never to use a var starting with 'no' because if f****** confusing
 
     for (std::size_t i = ((* itor)[0] + 1) + (length_of_name + 1); i != (* itor)[1] + 1; i++ ) {
         tmp[o] = this-> memory_stack[i];
@@ -809,6 +817,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
     std::size_t last_lpoint = 0;
     float one_precent = (100.00/stack_length); 
     boost::uint16_t mid_tag_addr = 0;
+    bool found_mid_tag = false;
     std::size_t list_sep_tcount = 0;
     boost::uint16_t lb_tag_addr = 0, le_tag_addr = 0;
     float finished_precentage = 0.00;
@@ -844,9 +853,9 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
           //  }
         }
     
-        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator]) mid_tag_addr = mem_stack_pos;
+        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator]) { mid_tag_addr = mem_stack_pos; found_mid_tag = true; }
         
-        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_BTAG) {
+        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_BTAG && !found_mid_tag) {
             found_list_begin = true;
             lb_tag_addr = mem_stack_pos; 
         }
@@ -868,7 +877,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             last_lpoint = mem_stack_pos;
         }
 
-        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG) {
+        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG && ! found_mid_tag) {
             if (found_list_begin && mem_stack_pos != lb_tag_addr) {
                 found_list_begin = false;
                 is_list_type = true;
@@ -945,7 +954,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 list_elength.clear();
                 list_elength.resize(0);
                 last_lpoint = 0;
-                 
+                found_mid_tag = false;                 
             }
         }
 
