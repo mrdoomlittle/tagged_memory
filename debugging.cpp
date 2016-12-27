@@ -10,7 +10,7 @@ int main()
 
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', ';', '~'}/*tags B/E/S*/, true/*this turns on debugging*/);
 
-    example.dump_into_stack(":HOHO~hello[0];:hello[2]~A,B;");
+    example.dump_into_stack(":HOHO[2]~HELL,HEVEN;:hello[2]~A,B;");
     example.analyze_stack_memory(error);
 
     
@@ -26,7 +26,7 @@ int main()
 //    example.load_mem_stack_from_file("output.dat");
  
 
-    return 0;
+   
     example.set_mem_value("hello[0]", "HELLO_WORLD", error);
   
     //example.set_mem_name("example_1", "by_mrdoomlittle", error);

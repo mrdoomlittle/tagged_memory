@@ -977,6 +977,9 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 found_mem_end_ts = false;
                 extra_mem_begin_tss = 0;
                 waround = 0;
+                le_tag_addr = 0;
+                lb_tag_addr = 0;
+                list_sep_tcount = 0;
                 list_points.clear();
                 list_points.resize(0);
                 list_elength.clear();
