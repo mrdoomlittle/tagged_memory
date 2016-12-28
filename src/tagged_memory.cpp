@@ -799,7 +799,7 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
     ublas::vector<boost::array<boost::uint16_t, 2>>
         ::iterator itor = this-> memory_addrs.begin();
 
-    std::size_t ad = find_mem_addr_it_pos(__addr, __error);
+    std::size_t ad = find_mem_addr_it_pos(__addr, __error), ext = 0;
     itor += ad;
     
     std::size_t length_of_name = get_mem_name_len(__addr, __error);
@@ -807,9 +807,11 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
     std::size_t length_of_value = 0;
     if (this-> infomation[ad].is_list_type == false || __no_list) 
         length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
-    else
+    else {
         length_of_value = this-> infomation[ad].list_elength[__list_addr];
- 
+        ext = 1;
+    }
+
     boost::uint16_t list_sep_point = 0; 
     if (this-> infomation[ad].is_list_type)
         list_sep_point = this-> infomation[ad].list_points[__list_addr] + 1;
@@ -817,8 +819,8 @@ char * mdl::tagged_memory::get_mem_value(boost::uint16_t __addr, bool & __error,
     if (this-> infomation[ad].is_list_type == false || __no_list)
         length_of_value += 2;
 
-    char * tmp = static_cast<char *>(malloc(length_of_value * sizeof(char)));
-    memset(tmp, '\0', length_of_value * sizeof(char));
+    char * tmp = static_cast<char *>(malloc(length_of_value + ext * sizeof(char)));
+    memset(tmp, '\0', length_of_value + ext * sizeof(char));
 
     
     std::size_t o = 0;
