@@ -1,5 +1,7 @@
 # include "tagged_memory.hpp"
-
+/* NOTE: i am passing char * into const char * 
+* i dont know if it will cause any error/s.
+*/
 
 mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
     std::initializer_list<char> __seporator_tags, bool __debug_logging)
@@ -24,6 +26,10 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
 
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error, boost::uint16_t __list_addr)
 {
+    /* NOTE: when setting a list element it does not directly edit the stack, but gets the value of the
+    * variable change it and then use the set_mem_value without list enabled
+    */
+
     char * tmp = this-> get_mem_value(__name, __error, 0, true);
 
     std::size_t nx_length = strlen(__value);
@@ -113,54 +119,68 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     std::free(aft);
 }
 
-bool mdl::tagged_memory::does_mem_name_exist(char const * __name, bool & __error)
+bool mdl::tagged_memory::does_mem_name_exist(char const * __mem_name, bool & __error)
 {
-    ublas::vector<boost::array<boost::uint16_t, 2>>
-        ::iterator itor = this-> memory_addrs.begin();
+    ublas::vector<boost::array<boost::uint16_t, 2>>::iterator it = this-> memory_addrs.begin();
 
-    for (; itor != this-> memory_addrs.end(); ++itor)
-    {
-        bool re = this-> compare_strings(__name, this-> get_mem_name((* itor)[0], __error));
-        if (re) return true;
-    }
-
+    /* iterate thru the address vector and compare the name of each variable until there's a match.
+    */
+    for (; it != this-> memory_addrs.end() ; ++ it)
+        if (this-> compare_strings(__mem_name, this-> get_mem_name((* it)[0], __error))) return true;
+ 
+    /* if no match was found then return 'false' */
     return false;
 }
 
-bool mdl::tagged_memory::compare_mem_value(char const * __name_0, char const * __name_1, bool & __error)
+bool mdl::tagged_memory::compare_mem_values(char const * __mem_name_0, char const * __mem_name_1, bool & __error)
 {
-    // get mem value returns char * and not char const *
-    // i dont know what errors it might cause
-    return this-> compare_strings(
-        this-> get_mem_value(__name_0, __error, 0, true),
-        this-> get_mem_value(__name_1, __error, 0, true)
-    ) ;
+    /* use the compare strings function and then return the result
+    * NOTE: the only way to comapre list elements is to pass somthing like this as the name 'example[ list pos ]'
+    */
+    return this-> compare_strings(this-> get_mem_value(__mem_name_0, __error, 0, true), 
+        this-> get_mem_value(__mem_name_1, __error, 0, true));
 }
 
-bool mdl::tagged_memory::compare_strings(char const * __value_0, char const * __value_1)
+bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * __string_1)
 {
-    size_t len_of_v0 = strlen(__value_0);
-    size_t len_of_v1 = strlen(__value_1);
-    size_t matching_char_c = 0;
+    /* get the length of each string as we will need them later */
+    size_t len_of_string_0 = strlen(__string_0);
+    size_t len_of_string_1 = strlen(__string_1);
 
-    std::cout << __value_0 << ", " << __value_1  << std::endl;
+    /* this will allow us to keep track on how many chars we have matched */
+    size_t matching_char_set = 0;
 
-    if (len_of_v0 != len_of_v1) return false;
+    // NOTE: remove this later if not needed as it was for debugging
+    std::cout << __string_0 << ", " << __string_1  << std::endl;
 
-    for (size_t i = 0; i != len_of_v0; i ++)
-        if (__value_0[i] == __value_1[i]) matching_char_c ++;
+    /* if there not the same length then there not going to be the same so return false */
+    if (len_of_string_0 != len_of_string_1) return false;
 
-    if (matching_char_c == len_of_v0) return true;
+    /* compare each char of both string, if they match then add 1 to 'matching_char_set'
+    * if theres no match move on to the next set of chars.
+    */
+    for (size_t i = 0 ; i != len_of_string_0 ; i ++)
+        if (__string_0[i] == __string_1[i]) matching_char_set ++;
+
+    /* if we have matched the same amount of chars compared to the length.
+    * then matching was a success, so return true
+    */
+    if (matching_char_set == len_of_string_0) return true;
+
+    // return false for defualt if matching failed
     return false;
 }
 
 char * mdl::tagged_memory::dump_stack_memory()
 {
     char * re = static_cast<char *>(malloc(this-> memory_stack.size()));
+
     memset(re, '\0', this-> memory_stack.size());
+
     for (size_t i = 0; i != this-> memory_stack.size(); i ++) {
         if (this-> memory_stack[i] == '\0') break;
         re[i] = this-> memory_stack[i];
+
         if (this-> debug_logging)
             printf("\x1B[0m%c\x1B[32m|\x1B[0m", this-> memory_stack[i]);
     } printf("\n");
@@ -853,6 +873,7 @@ std::size_t mdl::tagged_memory::get_list_length(char const * __name, bool & __er
 
 void mdl::tagged_memory::analyze_stack_memory(bool & __error)
 {
+    /* if theres no data to analyze, then dont analyze */
     if (this-> memory_stack.size() == 0) return;
 
     bool found_mem_begin_ts = false;
@@ -901,7 +922,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                     extra_mem_begin_tss ++;
                     waround ++;
                 }
-          //  }
+            //}
         }
     
         if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator]) { mid_tag_addr = mem_stack_pos; found_mid_tag = true; }
@@ -916,9 +937,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             list_elength.resize(list_points.size() + 1);
 
             list_elength(list_sep_tcount) = (mem_stack_pos - (list_sep_tcount == 0? mid_tag_addr : last_lpoint)) - 1;
-
-  //          std::cout << list_elength[list_sep_tcount] << ", " <<  (list_sep_tcount == 0? mid_tag_addr : mem_stack_pos) << std::endl; 
-   
+ 
             list_points.resize(list_points.size() + 1);
             
             list_points(list_sep_tcount) = list_sep_tcount == 0? mid_tag_addr : last_lpoint;
