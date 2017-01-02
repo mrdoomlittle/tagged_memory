@@ -312,14 +312,60 @@ void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, 
     }
    
     if (this-> debug_logging)
-        printf("adding memory tag into addr %d\n", insert_addr);
+        printf("adding memory tag at addr %d\n", insert_addr);
 
     char * tmp = this-> create_mem_tag(__name, __value);
 
     size_t length_of_mem = strlen(tmp);
 
     this-> memory_addrs.resize(this-> memory_addrs.size() + 1);
+    this-> infomation.resize(this-> infomation.size() + 1);
 
+    tagged_memory::__o & lo = this-> infomation[this-> memory_addrs.size() -1];
+# ifndef ADDMEM_UPDATE
+    bool got_list_be_tags = false;
+    bool found_list_begin = false;
+    boost::uint16_t lb_tag_addr = 0;
+    bool found_list_end = false;
+    boost::uint16_t le_tag_addr = 0;
+    bool found_middle_tag = false;
+    for (std::size_t i = 0; i != length_of_mem; i ++) {
+        if (tmp[i] == LIST_LEN_BTAG && !found_list_begin && !got_list_be_tags) {
+            found_list_begin = true;
+            lb_tag_addr = i;
+        }
+
+        if (tmp[i] == LIST_LEN_ETAG && found_list_begin && i != le_tag_addr && !got_list_be_tags) {
+            found_list_end = true;
+            le_tag_addr = i;
+        }
+
+        if (found_list_begin && found_list_end && !got_list_be_tags) {
+            got_list_be_tags = true;
+            lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
+            char * len_of_list = static_cast<char *>(malloc((lo.len_of_tag - 1) * sizeof(char)));
+            memset(len_of_list, '\0', (lo.len_of_tag - 1) * sizeof(char));
+            std::size_t l = 0;
+            for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
+                len_of_list[l] = tmp[p];
+                l ++;
+            }
+
+            std::cout << "length of list: " << len_of_list << std::endl;
+            lo.len_of_list = atoi(len_of_list);
+
+            lo.list_elength.resize(lo.len_of_list);
+            lo.list_points.resize((lo.len_of_list - 1));
+
+            std::free(len_of_list);
+        } 
+        
+        if (tmp[i] == MEM_LIST_TAG && !found_middle_tag) {
+            found_middle_tag = true;
+        }
+
+    }
+# endif 
     itor = this-> memory_addrs.end();
 
     --itor;
@@ -878,13 +924,17 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
 
     bool found_mem_begin_ts = false;
     bool found_mem_end_ts = false;
-    size_t extra_mem_begin_tss = 0;
+    size_t extra_mem_begin_tss = 0
+;
     boost::uint16_t mem_begin_ts_addr = 0;
     boost::uint16_t mem_end_ts_addr = 0;
+
     size_t mem_stack_pos = 0, waround = 0;
     bool found_list_begin = false, is_list_type = false;
+
     ublas::vector<boost::uint16_t> list_elength;
     ublas::vector<boost::uint16_t> list_points;
+
     boost::uint16_t stack_length = this-> memory_stack.size();
     std::size_t last_lpoint = 0;
     float one_precent = (100.00/stack_length); 
@@ -893,46 +943,89 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
     std::size_t list_sep_tcount = 0;
     boost::uint16_t lb_tag_addr = 0, le_tag_addr = 0;
     float finished_precentage = 0.00;
+    bool is_value_str_type = false;
+    boost::uint16_t str_begin_tag_addr = 0;
     if (this-> debug_logging)
         printf("\x1B[36manalysing the memory stack, please wait ...\x1B[0m\n");
     do
     {
         if (this-> debug_logging) {
-            printf("\x1B[32m%.2f%%\x1B[34m - analysing ...\x1B[0m\n", finished_precentage);
-            
+            printf("\x1B[32m%.2f%%\x1B[34m - analysing ...\x1B[0m\n", finished_precentage);            
         }
 
+        /* ther is no point of analyzing the full stack so we will just analyze untill
+        * we have found a \0 in the vector as all the vector elements get set to that
+        * in the constructor.
+        */
         if (this-> memory_stack[mem_stack_pos] == '\0') { 
             if (this-> debug_logging)
                 printf("\x1B[31mbreaking from loop. next char equls '\\0'\x1B[0m\n");
+
             break; 
         }
 
-        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__begin])
+        /* check if the current pos in the memory stack equls the string beginning tag
+        */        
+        if (this-> memory_stack[mem_stack_pos] == STR_BEGIN_TAG && found_mid_tag && !is_value_str_type) {
+            if (this-> debug_logging)
+                printf("\x1B[35mfound string beginning tag at addr %ld\x1B[0m\n", mem_stack_pos);
+
+            /* set to true, this will cause every other tag to be ignored e.g. memory beginning tag etc
+            */
+            is_value_str_type = true;
+            str_begin_tag_addr = mem_stack_pos;
+        }
+
+        if (is_value_str_type && (this-> memory_stack[mem_stack_pos] == this-> memory_stack[str_begin_tag_addr]) && mem_stack_pos != str_begin_tag_addr) {
+            if (this-> debug_logging)
+                printf("\x1B[35mfound string ending tag at addr %ld\x1B[0m\n", mem_stack_pos);
+
+            /* when we change it back to false it will allow other tags to be interpreted
+            */
+            is_value_str_type = false;
+            str_begin_tag_addr = 0;
+        }
+
+        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__begin] && !is_value_str_type)
         {
             if (this-> debug_logging)
                 printf("\x1B[35mfound beginning seporator as addr %ld\x1B[0m\n", mem_stack_pos);
-           // if (this-> memory_stack[mem_stack_pos + 1] != this-> seporator_tags[sp_t::__end]) {
+
+            /* if the next char in the memory stack is the ending tag there is no point of this, and
+            * it would cause errors as theres to middle tag so that means no name or value.
+            */
+            if (this-> memory_stack[mem_stack_pos + 1] != this-> seporator_tags[sp_t::__end]) {
                 if (! found_mem_begin_ts) {
                     if (this-> debug_logging)
                         printf("\x1B[33mmemory begin has been set at addr %ld\x1B[0m\n", mem_stack_pos);
+
                     found_mem_begin_ts = true;
                     mem_begin_ts_addr = mem_stack_pos;
                 } else {
                     extra_mem_begin_tss ++;
                     waround ++;
                 }
-            //}
+            }
         }
     
-        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator]) { mid_tag_addr = mem_stack_pos; found_mid_tag = true; }
-        
+        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__seporator] && !is_value_str_type) { 
+            if (this-> debug_logging)
+                printf("found middle tag at addr %ld\n", mem_stack_pos);
+
+            mid_tag_addr = mem_stack_pos;
+            found_mid_tag = true;
+        }
+
+        // this is before the mid tag 
         if (this-> memory_stack[mem_stack_pos] == LIST_LEN_BTAG && !found_mid_tag) {
+            if (this-> debug_logging)
+                printf("\x1B[35mfound list beginning tag at addr %ld\x1B[0m\n", mem_stack_pos);
+
             found_list_begin = true;
             lb_tag_addr = mem_stack_pos; 
         }
      
-        if (found_mem_begin_ts && this-> memory_stack[mem_stack_pos] == MEM_LIST_TAG) {
+        if (found_mem_begin_ts && this-> memory_stack[mem_stack_pos] == MEM_LIST_TAG && !is_value_str_type) {
             
             list_elength.resize(list_points.size() + 1);
 
@@ -947,64 +1040,85 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             last_lpoint = mem_stack_pos;
         }
 
-        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG && ! found_mid_tag) {
+        if (this-> memory_stack[mem_stack_pos] == LIST_LEN_ETAG && ! found_mid_tag && !is_value_str_type) {
             if (found_list_begin && mem_stack_pos != lb_tag_addr) {
+                if (this-> debug_logging)
+                    printf("\x1B[35mfound list ending tag at addr %ld\x1B[0m\n", mem_stack_pos);
+
                 found_list_begin = false;
                 is_list_type = true;
                 le_tag_addr = mem_stack_pos;
             } 
         }
 
-        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__end] && mem_stack_pos != mem_begin_ts_addr && found_mem_begin_ts)
+        if (this-> memory_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__end] && mem_stack_pos != mem_begin_ts_addr && found_mem_begin_ts && !is_value_str_type)
         {
             if (this-> debug_logging)
                 printf("\x1B[35mfound ending seporator as addr %ld\x1B[0m\n", mem_stack_pos);
+
             if (extra_mem_begin_tss != 0)
                 extra_mem_begin_tss --;
             else {
                 if (this-> debug_logging)
                     printf("\x1B[33mmemory end has been set at addr %ld\x1B[0m\n", mem_stack_pos); 
+
                 mem_end_ts_addr = mem_stack_pos;
                
                 this-> memory_addrs.resize(this-> memory_addrs.size() + 1);
-                this-> infomation.resize(this-> memory_addrs.size() + 1);
+                this-> infomation.resize(this-> infomation.size() + 1);
 
                 tagged_memory::__o & lo = this-> infomation[this-> memory_addrs.size() -1];
-                
-     
+               
                 lo.is_list_type = is_list_type;
-                if (lo.is_list_type) {
+
+                /* check if it a list type, if so then we can continue
+                */
+                if (lo.is_list_type) 
+                {
                     // the extra 1 is because it startes to cout from 0
+                    /* length of the tag from [ to ], we will need this later
+                    * when extracting the name of the memory.
+                    */
                     lo.len_of_tag = (le_tag_addr - lb_tag_addr) + 1;
 
-               
-                    list_elength.resize(list_points.size() + 1);
+                    /* because these vectors size change every time we find a list seporator,
+                    * we are going to be off by 1 element. e.g. (: , , , , ;) list sep count = 4
+                    * NOTE: need to explain.
+                    */
+                    list_elength.resize(list_elength.size() + 1);
                     list_points.resize(list_points.size() + 1);
 
                     list_elength(list_sep_tcount) = (mem_stack_pos - last_lpoint) - 1;
-                    list_points(list_sep_tcount) = last_lpoint;
-                
+                    list_points(list_sep_tcount) = last_lpoint; 
 
-                    //lo.list_points.resize(sep_points.size());
+                    /* swap the contents of the vectors.
+                    */
                     lo.list_points.swap(list_points);
                     lo.list_elength.swap(list_elength); 
                 
+                    /* this is where we will store the data from [ to ] by without the []
+                    */ 
                     char * list_len = static_cast<char *>(malloc((lo.len_of_tag - 2) * sizeof(char)));
                     memset(list_len, '\0', (lo.len_of_tag - 2) * sizeof(char));    
  
+                    /* from [ to ] extract whats there.
+                    */
                     std::size_t j = 0;
                     for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
                         list_len[j] = this-> memory_stack[p];
                         j++;
                     }
 
+                    /* convirt to a integer
+                    */
                     lo.len_of_list = atoi(list_len);
 
+                    /* free the memory that we used */
                     std::free(list_len);
                 }
 
                 //printf("---------------------> %ld -- %ld\n", lo.len_of_tag, lo.len_of_list);
-    
+  
                 ublas::vector<boost::array<boost::uint16_t, 2>>
                     ::iterator itor = this-> memory_addrs.begin();
             
@@ -1028,7 +1142,9 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 list_elength.resize(0);
                 last_lpoint = 0;
                 found_list_begin = false;
-                found_mid_tag = false;                 
+                found_mid_tag = false;  
+                is_value_str_type = false;
+                str_begin_tag_addr = 0;               
             }
         }
 

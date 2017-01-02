@@ -13,6 +13,11 @@
 # define LIST_LEN_ETAG ']'
 # define MEM_LIST_TAG ','
 
+// NOTE: the STR Begin and End are '
+# define STR_BEGIN_TAG '\x27'
+# define STR_END_TAG '\x27'
+
+# define ADDMEM_UPDATE
 # include <string.h>
 # include <fstream>
 # include <boost/array.hpp>
@@ -119,6 +124,8 @@ namespace mdl { class tagged_memory
         bool is_list_type = false;
         
         std::size_t len_of_list = 0;
+
+        /* e.g. example [255] <- the length from [ to ] in chars */
         std::size_t len_of_tag = 0;
 
         /* hear we will store where the starting point of each
