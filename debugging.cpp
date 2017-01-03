@@ -8,15 +8,17 @@ int main()
     bool error = false;
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', ';', '~'}/*tags B/E/S*/, true/*this turns on debugging*/);
 
-    example.dump_into_stack(":dan[2]~'HEL:LO,','H';");
+    example.dump_into_stack(":dan~test;   :tmp~loser;");
 
     example.analyze_stack_memory(error);
 
-    std::cout << "-> " << example.get_mem_value("dan[0]", error, 0, true) << std::endl;
+    example.set_mem_value("dan", "hello", error);
 
-    example.add_mem_tag("hello[22283636]", "", 0, error);
+    std::cout << "-> " << example.get_mem_value("tmp", error, 0, true) << std::endl;
 
+//    example.add_mem_tag("hello[22283636]", "", 0, error);
 
+    example.dump_stack_memory();
 return 0;
 /*
     // some functions take a bool ref in and will set it to true if there was a problem doing somthing

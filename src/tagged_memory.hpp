@@ -12,10 +12,11 @@
 # define LIST_LEN_BTAG '['
 # define LIST_LEN_ETAG ']'
 # define MEM_LIST_TAG ','
-
+# define BLANK_MEMORY ' '
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG '\x27'
 # define STR_END_TAG '\x27'
+# define RESIZE_TO_FIT true
 
 # define ADDMEM_UPDATE
 # include <string.h>

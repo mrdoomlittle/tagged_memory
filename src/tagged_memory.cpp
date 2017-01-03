@@ -621,6 +621,8 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
 {
     boost::uint16_t mem_location = this-> get_mem_addr(__current_name, __error);
 
+    bool resize_to_fit = RESIZE_TO_FIT;
+
     if (this-> debug_logging)
         printf("\x1B[35msetting mem name at addr %d. from '%s' to '%s'\x1B[0m\n", mem_location, __current_name, __name);
    
@@ -634,17 +636,36 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     size_t len_of_name = this-> get_mem_name_len(mem_location, __error);
     
     if (__error == true) return;   
- 
+
+    /* count how much extra space there is after the ending address
+    */
+    std::size_t free_space = 0;
+    for (std::size_t i = (* itor)[1] + 2;; i ++) {
+        if (this-> memory_stack[i] == BLANK_MEMORY) free_space ++; else break;
+    }
+
     bool is_same_len = false;
     size_t o = 0, rm = 0;
     bool less = false, grater = false;
     size_t amount_changed = 0;
-
+    std::size_t extra_frm = 0;
     for (size_t i = ((* itor)[0] + 1);; i ++) {
         if (this-> memory_stack[rm] == this-> seporator_tags[sp_t::__seporator] && !grater && !is_same_len) {
-            this-> insert_into_mem_stack(' ', rm, __error);
+            if (resize_to_fit) {
+                if (free_space == 0) {
+                    this-> insert_into_mem_stack(BLANK_MEMORY, rm, __error);
+                    amount_changed ++;
+                } else {
+                    for (std::size_t l = (* itor)[1] + 1; l != (rm - 1); l --) {
+                        this-> memory_stack[l + 1] = this-> memory_stack[l];
+                        this-> memory_stack[l] = BLANK_MEMORY;
+                    }
+                
+                    free_space --;
+                }
+            } else this-> insert_into_mem_stack(BLANK_MEMORY, rm, __error);
+
             (* itor)[1] ++;
-            amount_changed ++;
             less = true;
         }
 
@@ -663,6 +684,8 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     
     if (itor == (this-> memory_addrs.end() - 1) || amount_changed == 0) return;
     
+    if (amount_changed == 0) return;
+
     std::size_t cid = (ad + 1);
 
     ++itor;
@@ -686,8 +709,6 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
         }
         cid ++;
     }
-
-
 }
 
 char * mdl::tagged_memory::extract_list_addr(char const * __name, 
@@ -720,6 +741,7 @@ char * mdl::tagged_memory::extract_list_addr(char const * __name,
 
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error)
 {
+    bool resize_to_fit = RESIZE_TO_FIT;
    
     std::size_t ltaddr_b = 0;
     std::size_t ltaddr_e = 0;
@@ -764,12 +786,13 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     size_t length_of_name = get_mem_name_len(mem_location, __error); 
  
     size_t length_of_value = ((* itor)[1] - (((* itor)[0] + 1) + (length_of_name + 1)));
- 
+    bool did_addrs_change = false;
+    boost::uint16_t last_end_addr = (* itor)[1];
     length_of_value ++;
     bool len = false, tsmall = false;
     size_t o = 0, extra = 1, rm = 0;
     bool bypass = strlen(__value) == length_of_value? true : false;
-   
+    std::size_t extra_frm = 0;
     for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1);; i++ ) {
         if (this-> memory_stack[i] == this-> seporator_tags[sp_t::__begin] && !len && !tsmall) extra ++;
 
@@ -787,23 +810,49 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                 }
                 else
                 {
-                    this-> uninsert_from_mem_stack(rm, __error); 
-                    if (this-> memory_stack[rm] == this-> seporator_tags[sp_t::__end])
-                        extra --;
-                
+                    if (!resize_to_fit)
+                    { 
+                        this-> memory_stack[rm] = this-> memory_stack[(rm + extra_frm) + 1];
+                        this-> memory_stack[(rm + extra_frm) + 1] = ' ';
+
+                        if (this-> memory_stack[rm] == this-> seporator_tags[sp_t::__end]) extra --;
+                        extra_frm ++;
+                    }
+
+                    if (resize_to_fit)
+                    { 
+                        this-> uninsert_from_mem_stack(rm, __error); 
+
+                        if (this-> memory_stack[rm] == this-> seporator_tags[sp_t::__end]) extra --;
+                    } 
                 }
             } 
        
         } else {
             if (!bypass) {
-            if (i == ((* itor)[1] + 1) && !tsmall) {
-                std::cout << this-> memory_stack[i] << std::endl;
-        
-                tsmall = true;
+                if (i == ((* itor)[1] + 1) && !tsmall) tsmall = true; 
+             
+                if (tsmall) 
+                {
+                    /* if we are dealing a large amount of data you should first specify
+                    * how much memory its going to take up, so when it comes to updating
+                    * that pice of memory we dont need to push all the elements in the stack
+                    * up by one.
+                    */
+                    if (resize_to_fit)
+                    {
+                        if (this-> memory_stack[i + 1] != ' ') {
+                            this-> insert_into_mem_stack(' ', i, __error);
+                            did_addrs_change = true;
+                        } else  
+                            this-> memory_stack[i + 1] = this-> memory_stack[i];
+
+                    } else {
+                        this-> insert_into_mem_stack(' ', i, __error);
+                        did_addrs_change = true;
+                    }
+                }
             }
-         
-            if (tsmall) this-> insert_into_mem_stack(' ', i, __error);
-}
             this-> memory_stack(i) = __value[o];
 
             o ++;
@@ -840,16 +889,19 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                 if (g) this-> infomation[cid].list_points(i) += change;
                 if (l) this-> infomation[cid].list_points(i) -= change;
             }
+            if (did_addrs_change) return;
         }
 
-        if (l) {
-            (* itor)[0] -= change;
-            (* itor)[1] -= change;
-        }
+        if (did_addrs_change) {
+            if (l) {
+                (* itor)[0] -= change;
+                (* itor)[1] -= change;
+            }
 
-        if (g) {
-            (* itor)[0] += change;
-            (* itor)[1] += change;
+            if (g) {
+                (* itor)[0] += change;
+                (* itor)[1] += change;
+            }
         }
 
         cid ++;
