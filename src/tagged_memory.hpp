@@ -36,7 +36,7 @@ namespace mdl { class tagged_memory
     tagged_memory(boost::uint16_t __allocated_memory,
         std::initializer_list<char> __seporator_tags, bool __debug_logging = true);
 
-    char * dump_stack_memory();
+    char * dump_stack_memory(bool __return = false);
 
     void analyze_stack_memory(bool & __error);
 

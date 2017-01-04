@@ -8,8 +8,10 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
 {
     this-> seporator_tags[0] = __seporator_tags.size() > 0? 
         *(__seporator_tags.begin()) : MEM_BEGIN_TAG;
+
     this-> seporator_tags[1] = __seporator_tags.size() > 1?
         *(__seporator_tags.begin() + 1) : MEM_MIDDLE_TAG;
+
     this-> seporator_tags[2] = __seporator_tags.size() > 2?
         *(__seporator_tags.begin() + 2) : MEM_END_TAG;
 
@@ -25,32 +27,47 @@ mdl::tagged_memory::tagged_memory(boost::uint16_t __allocated_memory,
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error, boost::uint16_t __list_addr)
 {
     /* NOTE: when setting a list element it does not directly edit the stack, but gets the value of the
-    * variable change it and then use the set_mem_value without list enabled
+    * variable changes it and then use the set_mem_value without list enabled
     */
 
+    /* get the current value of the pice of memory
+    */
     char * tmp = this-> get_mem_value(__name, __error, 0, true);
 
+    /* calulate the length of the string
+    */
     std::size_t nx_length = strlen(__value);
-    
+   
+    /* get the memory location e.g. the beginning address
+    */ 
     boost::uint16_t mem_location = this-> get_mem_addr(__name, __error);
 
+    /* how many itorator ++ is there needed for that pice of memory
+    */
     std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
 
+    /* what is the length of the list
+    */
     std::size_t curr_length = this-> infomation[ad].list_elength[__list_addr];
 
     std::size_t change = 0;
 
+    /* get the starting addr of the list element
+    */ 
     boost::uint16_t start = this-> infomation[ad].list_points[__list_addr];
+
+    /* get the length of the current value not the one passed thru function 
+    */
     std::size_t tlen = strlen(tmp);
+
     boost::uint16_t after_len = 0;
+
     std::size_t o = 0;
     if (curr_length == nx_length) {
-
         for (std::size_t i = start; i != start + curr_length; i ++) {
             this-> memory_stack[i] = __value[o];
             o ++;
         }
-
         return;
     }
 
@@ -67,41 +84,32 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         g = true;
     }
  
-    std::cout << "af" << after_len << std::endl;
-
     char * aft = static_cast<char *>(malloc(after_len * sizeof(char)));
     memset(aft, '\0', after_len * sizeof(char));
     std::cout << "change: " << change << std::endl;
 
     boost::uint16_t nmlen = this-> get_mem_name_len(mem_location, __error);
-    o = 0;
-    bool found_addr = false;
 
+    bool found_addr = false;
     std::size_t extra = 0, el = 0;
+
     if (g) extra = change;
     if (l) el = change;
-    std::cout << "extra: " << extra << std::endl;
 
-    std::size_t j = 0, skip = 0;
+    std::size_t j = 0, skip = 0; o = 0;
     for (std::size_t i = mem_location + nmlen; i != ((this-> memory_addrs[ad][1] + extra) - el) - 1; i ++) {
         if (i == (start - 1) || found_addr) {
-            aft[o] =  __value[j];
-
-            std::cout << "@ : " << aft[o] << std::endl;         
+            aft[o] =  __value[j];        
             skip = change;
+
             if (found_addr == false && j == 0) found_addr = true;
             if (j == nx_length - 1) found_addr = false; else j ++;
         } else {
             if (g) aft[o] = tmp[o - skip];
             if (l) aft[o] = tmp[o + skip];
-            std::cout << "@ : " << aft[o] << std::endl;
         }
         o ++;
-        
-        std::cout << "TICK-" << o-1 << std::endl;
-    }    
-
-    std::cout << aft << std::endl;
+    }
 
     this-> set_mem_value(__name, aft, __error);    
 
@@ -169,12 +177,14 @@ bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * _
     return false;
 }
 
-char * mdl::tagged_memory::dump_stack_memory()
+char * mdl::tagged_memory::dump_stack_memory(bool __return)
 {
+    /* allocate memory <- this is where we will store the stack memory
+    */
     char * re = static_cast<char *>(malloc(this-> memory_stack.size()));
-
     memset(re, '\0', this-> memory_stack.size());
 
+    /* if debugging is enabled then we will print the stack to the terminal */
     for (size_t i = 0; i != this-> memory_stack.size(); i ++) {
         if (this-> memory_stack[i] == '\0') break;
         re[i] = this-> memory_stack[i];
@@ -182,6 +192,13 @@ char * mdl::tagged_memory::dump_stack_memory()
         if (this-> debug_logging)
             printf("\x1B[0m%c\x1B[32m|\x1B[0m", this-> memory_stack[i]);
     } printf("\n");
+
+    /* if we are only wanting it to print to the terminal then __return = false
+    */
+    if (__return == false) {
+        std::free(re);
+        return nullptr;
+    }
 
     return re;   
 }
