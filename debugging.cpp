@@ -6,7 +6,7 @@ int main()
     bool error = false;
     mdl::tmem_t example(128/*size is chars/bytes*/, {':', '~', ';'}/*tags B/M/E*/, true/*this turns on debugging*/);
 
-    example.dump_into_stack(":dan~test;   :tmp~loser;");
+    example.dump_into_stack(":dan~test;\n   :tmp~loser;");
 
     example.analyze_stack_memory(error);
 
@@ -16,8 +16,10 @@ int main()
 
 //    example.add_mem_tag("hello[22283636]", "", 0, error);
 
-    example.add_mem_tag("ex[2]", "'Hello,People',pep", 12, error);
-    std::cout << "-> " << example.get_mem_value("ex[0]", error, 0, true) << std::endl;
+    //example.add_mem_tag("ex[2]", "'Hello,People',pep", 12, error);
+
+    example.set_mem_value("hello12", "test", error);
+    //std::cout << "-> " << example.get_mem_value("ex[0]", error, 0, true) << std::endl;
     example.dump_stack_memory();
 return 0;
 /*

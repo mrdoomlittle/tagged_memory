@@ -215,12 +215,13 @@ void mdl::tagged_memory::load_mem_stack_from_file(char const * __file_path)
 
     while ( std::getline (ifile, each_line) ) {
         char const * tmp = each_line.c_str();
-
         for (size_t i = point; i != point + strlen(tmp); i++) {
-            this-> memory_stack(i)  = tmp[o];
+            this-> memory_stack(i) = tmp[o];
             o++;
         }
 
+        o = 0;
+        point += strlen(tmp);
     }
 }
 
