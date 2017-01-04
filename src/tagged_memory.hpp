@@ -6,19 +6,26 @@
 # include <initializer_list>
 # define MEM_BEGIN_TAG '{'
 # define MEM_END_TAG '}'
-# define MEM_SEP_TAG ':'
-/* this is fore lists 
-*/
+# define MEM_MIDDLE_TAG ':'
+
 # define LIST_LEN_BTAG '['
 # define LIST_LEN_ETAG ']'
+
 # define MEM_LIST_TAG ','
 # define BLANK_MEMORY ' '
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG '\x27'
 # define STR_END_TAG '\x27'
+
+/* this takes the extra space given to 
+* elements when added, so insted of shifting
+* all the elements in the stack forward by 1
+* it will use the free space that has nothing
+* assigned to it. e.g. :ex_0~test;@@@@@:ex_1~test;
+* @ is free space.
+*/
 # define RESIZE_TO_FIT true
 
-# define ADDMEM_UPDATE
 # include <string.h>
 # include <fstream>
 # include <boost/array.hpp>
@@ -107,8 +114,9 @@ namespace mdl { class tagged_memory
     private:
     /* NOTE: need to up update this.
     */
-    enum sp_t : boost::uint8_t { __begin, __end, __seporator, __list };
-    
+    enum sp_t : boost::uint8_t { __mem_begin, __mem_middle, __mem_end };
+       
+ 
     bool debug_logging = false;
 
     /* each tag will be stored in this array,
