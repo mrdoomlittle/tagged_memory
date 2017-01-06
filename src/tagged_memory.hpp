@@ -12,6 +12,7 @@
 # define LIST_LEN_ETAG ']'
 
 # define MEM_LIST_TAG ','
+// note this does not work
 # define BLANK_MEMORY ' '
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG '\x27'
@@ -30,10 +31,20 @@
 # include <fstream>
 # include <boost/array.hpp>
 namespace ublas = boost::numeric::ublas;
+
+/* note need to rename this */
+typedef boost::uint16_t uint_t;
+
 namespace mdl { class tagged_memory
 {
     public:
-    tagged_memory(boost::uint16_t __allocated_memory,
+    // this will replace the bool error part
+    typedef struct {
+        bool fatal_error = false;
+    } error_info_t;
+
+    public:
+    tagged_memory(uint_t __allocated_memory,
         std::initializer_list<char> __seporator_tags, bool __debug_logging = true);
 
     char * dump_stack_memory(bool __return = false);
@@ -44,7 +55,7 @@ namespace mdl { class tagged_memory
 
     void dump_into_stack(ublas::vector<char> __memory);
 
-    boost::uint16_t get_mem_addr(char const * __name, bool & __error);
+    uint_t get_mem_addr(char const * __name, bool & __error);
 
     std::size_t get_list_length(char const * __name, bool & __error);
 
@@ -65,7 +76,7 @@ namespace mdl { class tagged_memory
     /* set the name of the memory */
     void set_mem_name(char const * __current_name, char const * __name, bool & __error);
 
-    void set_mem_value(char const * __name, char const * __value, bool & __error, boost::uint16_t __list_addr);
+    void set_mem_value(char const * __name, char const * __value, bool & __error, uint_t __list_addr);
 
     /* set the value of the memory */
     void set_mem_value(char const * __name, char const * __value, bool & __error);
@@ -76,47 +87,89 @@ namespace mdl { class tagged_memory
     void save_mem_stack_to_file(char const * __file_path);
 
     /* get the name of the memory from a id/address */
-    char * get_mem_name(boost::uint16_t __addr, bool & __error);
+    char * get_mem_name(uint_t __addr, bool & __error);
 
-    char * get_mem_value(char const * __name, bool & __error, boost::uint16_t __list_addr = 0, bool __no_list = true);
+    char * get_mem_value(char const * __name, bool & __error, uint_t __list_addr = 0, bool __no_list = true);
 
     /* get the value of the memory from a id/address */
-    char * get_mem_value(boost::uint16_t __addr, bool & __error, boost::uint16_t __list_addr, bool __no_list = true);
+    char * get_mem_value(uint_t __addr, bool & __error, uint_t __list_addr, bool __no_list = true);
 
     /* find the address corresponding to the one passed thru and return the amount
     * that the iterator should be iterated
     */
-    size_t find_mem_addr_it_pos(boost::uint16_t __addr, bool & __error);
+    size_t find_mem_addr_it_pos(uint_t __addr, bool & __error);
 
     /* starting from the start get the length from { to :
     */
-    size_t get_mem_name_len(boost::uint16_t __addr, bool & __error);
+    size_t get_mem_name_len(uint_t __addr, bool & __error);
 
     /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
     */
     // NOTE: change to 'is' and not 'does' :|
-    bool does_mem_addr_ok(boost::uint16_t __addr);
+    bool does_mem_addr_ok(uint_t __addr);
 
     /* insert a char into the memory stack. the memory thats allready there will be shifted forward
     * this includes all the memory after the address
     */
-    void insert_into_mem_stack(char __mem, boost::uint16_t __addr, bool & __error);
+    void insert_into_mem_stack(char __mem, uint_t __addr, bool & __error);
 
     /* remove a pice of memory from the stack and then shift all the memory in the stack after the address
     * to fill in the free space 
     */
-    void uninsert_from_mem_stack(boost::uint16_t __addr, bool & __error);
+    void uninsert_from_mem_stack(uint_t __addr, bool & __error);
     
     char * extract_list_addr(char const * __name, std::size_t & list_pointer,
         std::size_t __ltaddr_b, std::size_t __ltaddr_e);
+
+    typedef struct __mem_t {
+        __mem_t(std::size_t __element_id, tagged_memory * __this, error_info_t * __error_info) : 
+        element_id(__element_id), _this(__this), error_info(__error_info) { 
+            addr = __this-> mem_addrs[this-> element_id][0];
+            this-> len = (__this-> mem_addrs[this-> element_id][1] - (_this-> get_mem_name_len(this-> addr, this-> error) + this-> addr)) - 1;
+        }
+
+        bool is_addr_in_range(uint_t __addr) {
+            if (__addr <  0 || __addr > this-> len) return false;
+            return true;
+        }
+
+        
+
+        boost::uint8_t & operator[](std::size_t __addr) {
+            if (!this-> is_addr_in_range(__addr)) { this-> error_info-> fatal_error = true; }
+           
+            uint_t addr = ((_this-> mem_addrs[this-> element_id][0] + 1) + __addr) + 
+                _this-> get_mem_name_len(this-> addr, this-> error_info-> fatal_error) + 1;
+
+            return _this-> mem_stack[addr];
+
+        }
+         
+        std::size_t get_len(){
+            return this-> len;
+        }
+
+        error_info_t * error_info;
+        uint_t addr = 0;
+        bool error = false;
+        std::size_t len = 0;
+        std::size_t const element_id = 0;
+        tagged_memory * _this = nullptr;
+    } mem_t;
+
+    // this is for later
+    void mem_alloc() {
+        
+    }
+
+    void mem_free();
 
     private:
     /* NOTE: need to up update this.
     */
     enum sp_t : boost::uint8_t { __mem_begin, __mem_middle, __mem_end };
-       
- 
+        
     bool debug_logging = false;
 
     /* each tag will be stored in this array,
@@ -126,8 +179,8 @@ namespace mdl { class tagged_memory
 
     /* NOTE: need to get this working
     */
-    boost::uint16_t used_memory, free_memory;
- 
+    uint_t used_mem = 0, free_mem = 0;
+    
     typedef struct {
         // this will indicate that its in a list type format
         bool is_list_type = false;
@@ -141,8 +194,8 @@ namespace mdl { class tagged_memory
         * list element, this allows getting and setting each
         * element to be much faster when using large amounts of data
         */
-        ublas::vector<boost::uint16_t> list_elength;
-        ublas::vector<boost::uint16_t> list_points;
+        ublas::vector<uint_t> list_elength;
+        ublas::vector<uint_t> list_points;
     } mem_info_t;
 
     /* for each variable we store, any information about it will be stored hear.
@@ -153,12 +206,12 @@ namespace mdl { class tagged_memory
     * we need to know where the beginning address is, so we
     * wont need to analyze the stack every time we try to change something
     */
-    ublas::vector<boost::array<boost::uint16_t, 2>> mem_addrs;
+    ublas::vector<boost::array<uint_t, 2>> mem_addrs;
 
     /* every char that makes up each variable will be stored in this vector.
     * NOTE: this might change later as using this method can be slow.
     */
-    ublas::vector<char> mem_stack;
+    ublas::vector<boost::uint8_t> mem_stack;
 } ;
     typedef tagged_memory tmem_t;
 }
