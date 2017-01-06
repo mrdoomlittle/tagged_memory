@@ -92,7 +92,7 @@ namespace mdl { class tagged_memory
     */
     size_t get_mem_name_len(boost::uint16_t __addr, bool & __error);
 
-    /* see if we can find the address passed thru in 'memory_addrs' vector at arr pos 0
+    /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
     */
     // NOTE: change to 'is' and not 'does' :|
@@ -143,22 +143,22 @@ namespace mdl { class tagged_memory
         */
         ublas::vector<boost::uint16_t> list_elength;
         ublas::vector<boost::uint16_t> list_points;
-    } __o;
+    } mem_info_t;
 
     /* for each variable we store, any information about it will be stored hear.
     */
-    ublas::vector<__o> infomation;
+    ublas::vector<mem_info_t> mem_info;
 
     /* for each variable that we are storing in tagged format
     * we need to know where the beginning address is, so we
     * wont need to analyze the stack every time we try to change something
     */
-    ublas::vector<boost::array<boost::uint16_t, 2>> memory_addrs;
+    ublas::vector<boost::array<boost::uint16_t, 2>> mem_addrs;
 
     /* every char that makes up each variable will be stored in this vector.
     * NOTE: this might change later as using this method can be slow.
     */
-    ublas::vector<char> memory_stack;
+    ublas::vector<char> mem_stack;
 } ;
     typedef tagged_memory tmem_t;
 }
