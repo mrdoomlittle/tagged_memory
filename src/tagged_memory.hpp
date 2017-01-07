@@ -4,20 +4,22 @@
 # include <boost/cstdlib.hpp>
 # include <boost/cstdint.hpp>
 # include <initializer_list>
+
 # define MEM_BEGIN_TAG '{'
 # define MEM_END_TAG '}'
-# define MEM_MIDDLE_TAG ':'
 
-# define LIST_LEN_BTAG '['
-# define LIST_LEN_ETAG ']'
+# define MEM_MIDDLE_TAG ';'
+
+# define LIST_LEN_BTAG '<'
+# define LIST_LEN_ETAG '>'
 
 # define MEM_LIST_TAG ','
 // note this does not work
 # define BLANK_MEMORY ' '
 // NOTE: the STR Begin and End are '
-# define STR_BEGIN_TAG '\x27'
-# define STR_END_TAG '\x27'
-
+# define STR_BEGIN_TAG 0x27
+# define STR_END_TAG 0x27
+//# include <bitset>
 /* this takes the extra space given to 
 * elements when added, so insted of shifting
 * all the elements in the stack forward by 1
@@ -45,7 +47,7 @@ namespace mdl { class tagged_memory
 
     public:
     tagged_memory(uint_t __allocated_memory,
-        std::initializer_list<char> __seporator_tags, bool __debug_logging = true);
+        std::initializer_list<boost::uint8_t> __seporator_tags, bool __debug_logging = true);
 
     char * dump_stack_memory(bool __return = false);
 
@@ -211,6 +213,7 @@ namespace mdl { class tagged_memory
     /* every char that makes up each variable will be stored in this vector.
     * NOTE: this might change later as using this method can be slow.
     */
+    public:
     ublas::vector<boost::uint8_t> mem_stack;
 } ;
     typedef tagged_memory tmem_t;

@@ -4,7 +4,7 @@
 */
 
 mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
-    std::initializer_list<char> __seporator_tags, bool __debug_logging)
+    std::initializer_list<boost::uint8_t> __seporator_tags, bool __debug_logging)
 {
     this-> seporator_tags[0] = __seporator_tags.size() > 0? 
         *(__seporator_tags.begin()) : MEM_BEGIN_TAG;
@@ -21,7 +21,7 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     */
     this-> mem_stack.resize(__allocated_memory);
     for (size_t i = 0; i != __allocated_memory; i ++)
-        this-> mem_stack(i) = '\0';
+        this-> mem_stack(i) = 0x0;
 }
 
 void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error, uint_t __list_addr)
@@ -1067,7 +1067,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             printf("\x1B[32m%.2f%%\x1B[34m - analysing ...\x1B[0m\n", finished_precentage);            
         }
 
-        /* ther is no point of analyzing the full stack so we will just analyze untill
+        /* there is no point of analyzing the full stack so we will just analyze untill
         * we have found a \0 in the vector as all the vector elements get set to that
         * in the constructor.
         */
@@ -1130,7 +1130,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
 
                 mid_tag_addr = mem_stack_pos;
                 found_mid_tag = true;
-            }
+            }           
 
             // this is before the mid tag 
             if (this-> mem_stack[mem_stack_pos] == LIST_LEN_BTAG && !found_mid_tag) {
@@ -1161,7 +1161,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                     is_list_type = true;
                     le_tag_addr = mem_stack_pos;
                 } 
-            }
+            }            
         }
 
         if (this-> mem_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__mem_end] && found_mem_begin_ts && mem_stack_pos != mem_begin_ts_addr && !is_value_str_type)
