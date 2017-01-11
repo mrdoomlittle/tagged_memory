@@ -19,7 +19,7 @@ int main()
     mdl::tmem_t example(128, {'{', ';', '}'}, false/*debug info*/);
 
     /* dump charset into the stack */
-    example.dump_into_stack("{example_0;ex[0]}{example_1;ex[1]}");
+    example.dump_into_stack("{example_0<2>;ex[0], ex[0][1]}{example_1;ex[1]}");
 
     /* analyze the charset that was put into the stack */
     example.analyze_stack_memory(error);
@@ -44,6 +44,19 @@ int main()
 
         std::cout << "\n";
     }
+
+    /* NOTE: if you want illegal char's then use the '' string tags
+    * note the end resault will output the val with the tags.
+    */
+
+    /* list example: mem_name<list_addr> */
+    char * tmp = example.get_mem_value("example_0<0>", error);
+
+    // or example.get_mem_value("example_0", error, list_addr, false);
+
+    printf("output: %s\n", tmp);
+
+    std::free(tmp);
 
     return 0;
 }
