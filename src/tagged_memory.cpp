@@ -6,6 +6,11 @@
 mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     std::initializer_list<boost::uint8_t> __seporator_tags, bool __debug_logging)
 {
+    /* check if the list size is grater then 0 if so then
+    * we can get the data in the list for that seporator else
+    * we will use the default seporator. this is the same for
+    * all but list pos number is incremented.
+    */
     this-> seporator_tags[0] = __seporator_tags.size() > 0? 
         *(__seporator_tags.begin()) : MEM_BEGIN_TAG;
 
@@ -17,7 +22,8 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
 
     this-> debug_logging = __debug_logging;
 
-    /* set all elements in vector to \0 as strlen uses it to determine the length of a chr * array
+    /* set all elements in vector to \0 or 0x0 as strlen 
+    * uses it to determine the length of a char * array
     */
     this-> mem_stack.resize(__allocated_memory);
     for (size_t i = 0; i != __allocated_memory; i ++)
