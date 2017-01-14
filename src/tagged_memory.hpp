@@ -1,6 +1,7 @@
 # ifndef __tagged__memory__hpp
 # define __tagged__memory__hpp
 # include <boost/numeric/ublas/vector.hpp>
+# include <boost/filesystem.hpp>
 # include <boost/cstdlib.hpp>
 # include <boost/cstdint.hpp>
 # include <initializer_list>
@@ -19,6 +20,10 @@
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG 0x27
 # define STR_END_TAG 0x27
+
+// NOTE: you can change the size 
+constexpr char COMMENT_BTAG[2] = {'/', '*'};
+constexpr char COMMENT_ETAG[2] = {'*', '/'};
 //# include <bitset>
 /* this takes the extra space given to 
 * elements when added, so insted of shifting
@@ -45,11 +50,52 @@ namespace mdl { class tagged_memory
         bool fatal_error = false;
     } error_info_t;
 
+    typedef struct {
+        bool direct_file_reading = true;
+        char * mem_info_file = '\0';
+    } eoptions_t;
+
+    struct arc {
+        arc(FILE * __fs, char __typ) : fs(__fs), typ(__typ) {
+
+        }
+
+
+        arc operator&(std::size_t __size) {
+            if (typ == 's')
+                this-> size += __size;
+            else
+                this-> size = __size;
+        }
+
+        arc operator<<(void * __obj) {
+            switch(typ) {
+                case 'r':
+                    fread(__obj, size, 1, fs);
+                break;
+                case 'w':
+                    fwrite(__obj, size, 1, fs);
+                break;
+            } 
+        }
+    
+        arc operator|(char __typ) {
+            size = 0;
+            typ = __typ;
+        }
+     
+        std::size_t size = 0;
+       char typ = 'A';
+        FILE * fs;
+    };
+
     public:
     tagged_memory(uint_t __allocated_memory,
-        std::initializer_list<boost::uint8_t> __seporator_tags, bool __debug_logging = true);
+        std::initializer_list<boost::uint8_t> __seporator_tags, eoptions_t __extra_options, bool __debug_logging = true);
 
     char * dump_stack_memory(bool __return = false);
+
+    char * combine_strings(char const * __string_0, char const * __string_1);
 
     void analyze_stack_memory(bool & __error);
 
@@ -60,6 +106,17 @@ namespace mdl { class tagged_memory
     uint_t get_mem_addr(char const * __name, bool & __error);
 
     std::size_t get_list_length(char const * __name, bool & __error);
+
+    void save_mem_addrs(char const * __file_path, char const * __file_name);
+    void load_mem_addrs(char const * __file_path, char const * __file_name);
+
+    /* save the memory info to a file on the system
+    */
+    void save_mem_info(char const * __file_path, char const * __file_name);
+
+    /* load the memory info from a file on the system
+    */
+    void load_mem_info(char const * __file_path, char const * __file_name);
 
     /* check the memory stack for a var thats matches a name
     */
@@ -84,9 +141,9 @@ namespace mdl { class tagged_memory
     void set_mem_value(char const * __name, char const * __value, bool & __error);
 
     /* load the memory stack from a file */
-    void load_mem_stack_from_file(char const * __file_path);
+    void load_mem_stack_from_file(char const * __file_path, char const * __file_name);
     /* save the memory stack to a file */
-    void save_mem_stack_to_file(char const * __file_path);
+    void save_mem_stack_to_file(char const * __file_path, char const * __file_name);
 
     /* get the name of the memory from a id/address */
     char * get_mem_name(uint_t __addr, bool & __error);
@@ -108,8 +165,8 @@ namespace mdl { class tagged_memory
     /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
     */
-    // NOTE: change to 'is' and not 'does' :|
-    bool does_mem_addr_ok(uint_t __addr);
+
+    bool is_mem_addr_ok(uint_t __addr);
 
     /* insert a char into the memory stack. the memory thats allready there will be shifted forward
     * this includes all the memory after the address
@@ -168,6 +225,8 @@ namespace mdl { class tagged_memory
     void mem_free();
 
     private:
+    eoptions_t extra_options;
+
     /* NOTE: need to up update this.
     */
     enum sp_t : boost::uint8_t { __mem_begin, __mem_middle, __mem_end };
@@ -176,13 +235,14 @@ namespace mdl { class tagged_memory
 
     /* each tag will be stored in this array,
     * NOTE: any changes to this will be automaticly used.
+    * NOTE: need to update this
     */
     boost::array<char, 6> seporator_tags;
 
     /* NOTE: need to get this working
     */
     uint_t used_mem = 0, free_mem = 0;
-    
+    public: 
     typedef struct {
         // this will indicate that its in a list type format
         bool is_list_type = false;
@@ -191,6 +251,29 @@ namespace mdl { class tagged_memory
 
         /* e.g. example [255] <- the length from [ to ] in chars */
         std::size_t len_of_tag = 0;
+
+        std::size_t vec_lens[2] = {0};
+
+        void __arc(arc & ac) {
+            bool s = true;
+            if (ac.typ == 's')
+                s = false;
+
+            ac & sizeof(bool);
+            if (s) ac << &is_list_type;
+
+            ac & sizeof(std::size_t);
+            if (s) ac << &len_of_list;
+
+            ac & sizeof(std::size_t);
+            if (s) ac << &len_of_tag;
+
+            ac & sizeof(std::size_t);
+            if (s) ac << &vec_lens[0];
+
+            ac & sizeof(std::size_t);
+            if (s) ac << &vec_lens[1];
+        }
 
         /* hear we will store where the starting point of each
         * list element, this allows getting and setting each
@@ -213,7 +296,7 @@ namespace mdl { class tagged_memory
     /* every char that makes up each variable will be stored in this vector.
     * NOTE: this might change later as using this method can be slow.
     */
-    public:
+   
     ublas::vector<boost::uint8_t> mem_stack;
 } ;
     typedef tagged_memory tmem_t;

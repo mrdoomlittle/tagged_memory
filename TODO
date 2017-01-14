@@ -13,3 +13,7 @@ sorry for my english :(
 	.get mem_free and mem_used working
 
 	.clean up code and make it look better, also add more comments
+
+	.dump the mem_info to a file
+
+	.give a option to read from the file without dumping it into memory
