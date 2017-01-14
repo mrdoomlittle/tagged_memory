@@ -23,7 +23,7 @@ int main()
     mdl::tagged_memory::eoptions_t eo;
 
     // NOTE: implement this   
-    eo.fdirect_reading = true;
+    eo.fdirect_rw = true;
     eo.fcontains_data = true;
     eo.mem_info_file = "mem_info.dat";
     eo.mem_addrs_file = "mem_addrs.dat";

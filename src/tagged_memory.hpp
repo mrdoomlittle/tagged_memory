@@ -54,7 +54,7 @@ namespace mdl { class tagged_memory
     } error_info_t;
 
     typedef struct {        
-        bool fdirect_reading = false;
+        bool fdirect_rw = false;
         bool fcontains_data = false;
         char * mem_info_file = '\0';
         char * mem_addrs_file = '\0';

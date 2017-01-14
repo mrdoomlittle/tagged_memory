@@ -35,7 +35,7 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
 }
 
 void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr) {
-    if (extra_options.fdirect_reading) {
+    if (extra_options.fdirect_rw) {
         FILE * ofile = fopen(DEF_MSTACK_FILE, "r+b");
 
         fseek(ofile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
@@ -50,7 +50,7 @@ void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_a
 }
 
 boost::uint8_t mdl::tagged_memory::mem_stack_get(std::size_t __mem_addr) {
-    if (extra_options.fdirect_reading) {
+    if (extra_options.fdirect_rw) {
         FILE * ifile = fopen(DEF_MSTACK_FILE, "rb");
         
         fseek(ifile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
