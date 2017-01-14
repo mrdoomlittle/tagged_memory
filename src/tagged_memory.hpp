@@ -1,7 +1,7 @@
 # ifndef __tagged__memory__hpp
 # define __tagged__memory__hpp
 # include <boost/numeric/ublas/vector.hpp>
-# include <boost/filesystem.hpp>
+
 # include <boost/cstdlib.hpp>
 # include <boost/cstdint.hpp>
 # include <initializer_list>
