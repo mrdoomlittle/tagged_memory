@@ -1,6 +1,6 @@
 # include <tagged_memory.hpp>
 # include <iostream>
-
+# include <chrono>
 // functions for tmem_t. need more look at src/tagged_memory.hpp
 /*
     .does_mem_name_exist(char const *, bool &)
@@ -23,19 +23,24 @@ int main()
     mdl::tagged_memory::eoptions_t eo;
 
     // NOTE: implement this   
-    eo.fdirect_rw = true;
-    eo.fcontains_data = true;
+    eo.fdirect_rw = false;
+    eo.fcontains_data = false;
     eo.mem_info_file = "mem_info.dat";
     eo.mem_addrs_file = "mem_addrs.dat";
 
     /* create */
-    mdl::tmem_t example(128, {'{', ';', '}'}, eo, true/*debug info*/);
+    mdl::tmem_t example(128, {'{', ';', '}'}, eo, false/*debug info*/);
 
     /* dump charset into the stack */
     //example.dump_into_stack("/*NOTE: the tag < & > are for list length*/{example_0<2>;ex[0], ex[0][1]}{example_1<3>;ex[1],P,a}");
 
+    /* NOTE: when setting elements it will be slow if you havent no extra space to the right
+    * e.g. {example_0;}@@@@@@@@@@@{example_1;} 
+    * @ = space
+    */
+    example.dump_into_stack("{example_0;}      {example_1;}");
     /* analyze the charset that was put into the stack */
-    //example.analyze_stack_memory(error);
+    example.analyze_stack_memory(error);
     
     //example.save_mem_stack_to_file("", DEF_MSTACK_FILE);
 
@@ -51,8 +56,8 @@ int main()
     // NOTE: need to work on this
     /* load the memory infomation from file
     */
-    example.load_mem_info();
-    example.load_mem_addrs(); 
+    //example.load_mem_info();
+    //example.load_mem_addrs(); 
 
     /* mdl::tagged_memory::mem_t
     * allows you to access the data at a point in the stack
@@ -77,16 +82,30 @@ int main()
     * note the end resault will output the val with the tags.
     */
 
+    auto begin = std::chrono::high_resolution_clock::now();
+
     /* example set
     */
-    example.set_mem_value("example_0<0>", "hello", error);
+    for (std::size_t i = 0; i != 256; i ++) {
+        std::string s = std::to_string(i);
+        example.set_mem_value("example_0", s.c_str(), error);
+
+    }
 
     /* list example: mem_name<list_addr> */
-    char * tmp = example.get_mem_value("example_0<0>", error);
+    char * tmp = example.get_mem_value("example_0", error);
     
     // or example.get_mem_value("example_0", error, list_addr, false);
 
     printf("output: %s\n", tmp);
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - begin);
+
+    std::cout << time_span.count() << std::endl;    
+
+    example.dump_stack_memory();
 
     std::free(tmp);
 

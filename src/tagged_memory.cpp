@@ -1177,7 +1177,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
 
         }
     }
-
+    
     size_t before = (* itor)[1];
     (* itor)[1] = ((* itor)[0] + strlen(__value) + (length_of_name + 1));
 
