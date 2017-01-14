@@ -32,7 +32,7 @@ constexpr char COMMENT_ETAG[2] = {'*', '/'};
 * assigned to it. e.g. :ex_0~test;@@@@@:ex_1~test;
 * @ is free space.
 */
-# define RESIZE_TO_FIT true
+# define RESIZE_TO_FIT false
 # define DEF_MSTACK_FILE "mem_stack.dat"
 # define DEF_MINFO_FILE "mem_info.dat"
 # define DEF_MADDRS_FILE "mem_addrs.dat"

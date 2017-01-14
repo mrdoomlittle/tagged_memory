@@ -36,7 +36,7 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
 
 void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr) {
     if (extra_options.fdirect_reading) {
-        FILE * ofile = fopen(DEF_MSTACK_FILE, "wb");
+        FILE * ofile = fopen(DEF_MSTACK_FILE, "r+b");
 
         fseek(ofile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
 
@@ -268,10 +268,12 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
 
     std::size_t o = 0;
     if (curr_length == nx_length) {
-        for (std::size_t i = start; i != start + curr_length; i ++) {
+        for (std::size_t i = start+1; i != start + curr_length +1; i ++) {
             this-> mem_stack_set(__value[o], i);
             o ++;
         }
+        
+        std::free(tmp);
         return;
     }
 
@@ -303,7 +305,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     std::size_t j = 0, skip = 0; o = 0;
     for (std::size_t i = mem_location + nmlen; i != ((this-> mem_addrs[ad][1] + extra) - el) - 1; i ++) {
         if (i == (start - 1) || found_addr) {
-            aft[o] =  __value[j];        
+            aft[o] = __value[j];        
             skip = change;
 
             if (found_addr == false && j == 0) found_addr = true;
@@ -312,11 +314,12 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
             if (g) aft[o] = tmp[o - skip];
             if (l) aft[o] = tmp[o + skip];
         }
+
         o ++;
     }
 
     this-> set_mem_value(__name, aft, __error);    
-
+   
     for (std::size_t i = __list_addr + 1; i != this-> mem_info[ad].list_points.size(); i ++) {
         if (g) this-> mem_info[ad].list_points(i) += change; 
         if (l) this-> mem_info[ad].list_points(i) -= change;
@@ -1100,7 +1103,9 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     length_of_value ++;
     bool len = false, tsmall = false;
     size_t o = 0, extra = 1, rm = 0;
+   
     bool bypass = strlen(__value) == length_of_value? true : false;
+    
     std::size_t extra_frm = 0;
     for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1);; i++ ) {
         if (this-> mem_stack_get(i) == this-> seporator_tags[sp_t::__mem_begin] && !len && !tsmall) extra ++;
@@ -1121,7 +1126,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                 {
                     if (!resize_to_fit)
                     { 
-                        this-> mem_stack_set(this-> mem_stack_get((rm + extra_frm) + 1), rm);// 
+                        this-> mem_stack_set(this-> mem_stack_get((rm + extra_frm) + 1), rm);
                         //this-> mem_stack[rm] = this-> mem_stack[(rm + extra_frm) + 1];
                         //this-> mem_stack[(rm + extra_frm) + 1] = ' ';
                         this-> mem_stack_set(BLANK_MEMORY, (rm + extra_frm) + 1);
@@ -1152,14 +1157,14 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     */
                     if (resize_to_fit)
                     {
-                        if (this-> mem_stack_get(i + 1) != ' ') {
-                            this-> insert_into_mem_stack(' ', i, __error);
+                        if (this-> mem_stack_get(i + 1) != BLANK_MEMORY) {
+                            this-> insert_into_mem_stack(BLANK_MEMORY, i, __error);
                             did_addrs_change = true;
                         } else  
                             this-> mem_stack_set(this-> mem_stack_get(i), i + 1);
 
                     } else {
-                        this-> insert_into_mem_stack(' ', i, __error);
+                        this-> insert_into_mem_stack(BLANK_MEMORY, i, __error);
                         did_addrs_change = true;
                     }
                 }

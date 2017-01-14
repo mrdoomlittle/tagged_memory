@@ -47,6 +47,7 @@ int main()
     //example.save_mem_info();
     //example.save_mem_addrs();
 
+  
     // NOTE: need to work on this
     /* load the memory infomation from file
     */
@@ -76,9 +77,13 @@ int main()
     * note the end resault will output the val with the tags.
     */
 
+    /* example set
+    */
+    example.set_mem_value("example_0<0>", "hello", error);
+
     /* list example: mem_name<list_addr> */
     char * tmp = example.get_mem_value("example_0<0>", error);
-
+    
     // or example.get_mem_value("example_0", error, list_addr, false);
 
     printf("output: %s\n", tmp);
