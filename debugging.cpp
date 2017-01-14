@@ -21,27 +21,37 @@ int main()
     */
 
     mdl::tagged_memory::eoptions_t eo;
-   
-    eo.direct_file_reading = false;
 
+    // NOTE: implement this   
+    eo.fdirect_reading = true;
+    eo.fcontains_data = true;
     eo.mem_info_file = "mem_info.dat";
+    eo.mem_addrs_file = "mem_addrs.dat";
 
     /* create */
-    mdl::tmem_t example(128, {'{', ';', '}'}, eo, false/*debug info*/);
+    mdl::tmem_t example(128, {'{', ';', '}'}, eo, true/*debug info*/);
 
     /* dump charset into the stack */
-    example.dump_into_stack("/*NOTE: the tag < & > are for list length*/{example_0<2>;ex[0], ex[0][1]}{example_1<3>;ex[1],P,a}");
+    //example.dump_into_stack("/*NOTE: the tag < & > are for list length*/{example_0<2>;ex[0], ex[0][1]}{example_1<3>;ex[1],P,a}");
 
     /* analyze the charset that was put into the stack */
     //example.analyze_stack_memory(error);
     
+    //example.save_mem_stack_to_file("", DEF_MSTACK_FILE);
+
+    /* NOTE: save_mem_info creates 2 files .filename, filename
+    */
     mdl::tagged_memory::error_info_t error_info;
-    //example.save_mem_info("", "mem_info.dat");
-    //example.save_mem_addrs("", "mem_addrs.dat");
+    /* save the memory infomation e.g. tag address etc
+    */
+    //example.save_mem_info();
+    //example.save_mem_addrs();
 
     // NOTE: need to work on this
-    example.load_mem_info("", "mem_info.dat");
-    example.load_mem_addrs("", "mem_addrs.dat"); 
+    /* load the memory infomation from file
+    */
+    example.load_mem_info();
+    example.load_mem_addrs(); 
 
     /* mdl::tagged_memory::mem_t
     * allows you to access the data at a point in the stack

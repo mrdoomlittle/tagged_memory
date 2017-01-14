@@ -33,6 +33,9 @@ constexpr char COMMENT_ETAG[2] = {'*', '/'};
 * @ is free space.
 */
 # define RESIZE_TO_FIT true
+# define DEF_MSTACK_FILE "mem_stack.dat"
+# define DEF_MINFO_FILE "mem_info.dat"
+# define DEF_MADDRS_FILE "mem_addrs.dat"
 
 # include <string.h>
 # include <fstream>
@@ -50,16 +53,16 @@ namespace mdl { class tagged_memory
         bool fatal_error = false;
     } error_info_t;
 
-    typedef struct {
-        bool direct_file_reading = true;
+    typedef struct {        
+        bool fdirect_reading = false;
+        bool fcontains_data = false;
         char * mem_info_file = '\0';
+        char * mem_addrs_file = '\0';
     } eoptions_t;
 
+    // NOTE: to clean this up
     struct arc {
-        arc(FILE * __fs, char __typ) : fs(__fs), typ(__typ) {
-
-        }
-
+        arc(FILE * __fs, char __typ) : fs(__fs), typ(__typ) {}
 
         arc operator&(std::size_t __size) {
             if (typ == 's')
@@ -85,7 +88,7 @@ namespace mdl { class tagged_memory
         }
      
         std::size_t size = 0;
-       char typ = 'A';
+        char typ = '\0';
         FILE * fs;
     };
 
@@ -107,15 +110,20 @@ namespace mdl { class tagged_memory
 
     std::size_t get_list_length(char const * __name, bool & __error);
 
+    void save_mem_addrs();
     void save_mem_addrs(char const * __file_path, char const * __file_name);
+
+    void load_mem_addrs();
     void load_mem_addrs(char const * __file_path, char const * __file_name);
 
     /* save the memory info to a file on the system
     */
+    void save_mem_info();
     void save_mem_info(char const * __file_path, char const * __file_name);
 
     /* load the memory info from a file on the system
     */
+    void load_mem_info();
     void load_mem_info(char const * __file_path, char const * __file_name);
 
     /* check the memory stack for a var thats matches a name
@@ -193,15 +201,13 @@ namespace mdl { class tagged_memory
             return true;
         }
 
-        
-
-        boost::uint8_t & operator[](std::size_t __addr) {
+        boost::uint8_t operator[](std::size_t __addr) {
             if (!this-> is_addr_in_range(__addr)) { this-> error_info-> fatal_error = true; }
            
             uint_t addr = ((_this-> mem_addrs[this-> element_id][0] + 1) + __addr) + 
                 _this-> get_mem_name_len(this-> addr, this-> error_info-> fatal_error) + 1;
 
-            return _this-> mem_stack[addr];
+            return _this-> mem_stack_get(addr);
 
         }
          
@@ -242,10 +248,12 @@ namespace mdl { class tagged_memory
     /* NOTE: need to get this working
     */
     uint_t used_mem = 0, free_mem = 0;
-    public: 
+    
     typedef struct {
         // this will indicate that its in a list type format
         bool is_list_type = false;
+
+        char * cached_mem_name = nullptr;
         
         std::size_t len_of_list = 0;
 
@@ -256,8 +264,8 @@ namespace mdl { class tagged_memory
 
         void __arc(arc & ac) {
             bool s = true;
-            if (ac.typ == 's')
-                s = false;
+
+            if (ac.typ == 's') s = false;
 
             ac & sizeof(bool);
             if (s) ac << &is_list_type;
@@ -296,7 +304,10 @@ namespace mdl { class tagged_memory
     /* every char that makes up each variable will be stored in this vector.
     * NOTE: this might change later as using this method can be slow.
     */
-   
+    public:
+    void mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr);
+    boost::uint8_t mem_stack_get(std::size_t __mem_addr);
+
     ublas::vector<boost::uint8_t> mem_stack;
 } ;
     typedef tagged_memory tmem_t;

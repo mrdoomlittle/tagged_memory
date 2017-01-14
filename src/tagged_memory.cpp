@@ -27,9 +27,51 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     */
     this-> mem_stack.resize(__allocated_memory);
     for (size_t i = 0; i != __allocated_memory; i ++)
-        this-> mem_stack(i) = 0x0;
+        if (!__extra_options.fcontains_data)
+            this-> mem_stack_set(0x0, i);
+//        this-> mem_stack(i) = 0x0;
 
     this-> extra_options = __extra_options;
+}
+
+void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr) {
+    if (extra_options.fdirect_reading) {
+        FILE * ofile = fopen(DEF_MSTACK_FILE, "wb");
+
+        fseek(ofile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
+
+        fwrite(&__mem, sizeof(boost::uint8_t), 1, ofile);
+
+        rewind(ofile);
+        
+        fclose(ofile);
+    } else
+        this-> mem_stack(__mem_addr) = __mem;
+}
+
+boost::uint8_t mdl::tagged_memory::mem_stack_get(std::size_t __mem_addr) {
+    if (extra_options.fdirect_reading) {
+        FILE * ifile = fopen(DEF_MSTACK_FILE, "rb");
+        
+        fseek(ifile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
+
+        static char temp = '\0';
+
+        fread(&temp, sizeof(boost::uint8_t), 1, ifile);
+
+        rewind(ifile);
+
+        fclose(ifile);
+
+        return temp;
+    } else
+        return this-> mem_stack[__mem_addr];
+
+    return '\0';
+}
+
+void mdl::tagged_memory::save_mem_addrs() {
+    this-> save_mem_addrs("", extra_options.mem_addrs_file != '\0'? extra_options.mem_addrs_file : DEF_MADDRS_FILE);
 }
 
 void mdl::tagged_memory::save_mem_addrs(char const * __file_path, char const * __file_name) {
@@ -46,6 +88,10 @@ void mdl::tagged_memory::save_mem_addrs(char const * __file_path, char const * _
 
     fclose(ofile);
     std::free(full_path);
+}
+
+void mdl::tagged_memory::load_mem_addrs() {
+    this-> load_mem_addrs("", extra_options.mem_addrs_file != '\0'? extra_options.mem_addrs_file : DEF_MADDRS_FILE);
 }
 
 void mdl::tagged_memory::load_mem_addrs(char const * __file_path, char const * __file_name) {
@@ -76,6 +122,10 @@ void mdl::tagged_memory::load_mem_addrs(char const * __file_path, char const * _
     std::free(full_path);
 }
 
+void mdl::tagged_memory::save_mem_info() {
+    this-> save_mem_info("", extra_options.mem_info_file != '\0'? extra_options.mem_info_file : DEF_MINFO_FILE);
+}
+
 void mdl::tagged_memory::save_mem_info(char const * __file_path, char const * __file_name) {
     char * full_path = this-> combine_strings(__file_path, __file_name);
     char * efile_name = this-> combine_strings(".", __file_name);
@@ -96,7 +146,6 @@ void mdl::tagged_memory::save_mem_info(char const * __file_path, char const * __
         this-> mem_info[i].vec_lens[1] = this-> mem_info[i].list_points.size();
         this-> mem_info[i].__arc(ac);
         
-
         for (std::size_t o = 0; o != this-> mem_info[i].list_elength.size(); o ++) {
             fwrite(&this-> mem_info[i].list_elength[o], sizeof(uint_t), 1, eofile);
         }
@@ -110,6 +159,10 @@ void mdl::tagged_memory::save_mem_info(char const * __file_path, char const * __
     fclose(eofile);
     std::free(full_path);
     std::free(efull_path);
+}
+
+void mdl::tagged_memory::load_mem_info() {
+    this-> load_mem_info("", extra_options.mem_info_file != '\0'? extra_options.mem_info_file : DEF_MINFO_FILE);
 }
 
 void mdl::tagged_memory::load_mem_info(char const * __file_path, char const * __file_name) {
@@ -216,7 +269,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     std::size_t o = 0;
     if (curr_length == nx_length) {
         for (std::size_t i = start; i != start + curr_length; i ++) {
-            this-> mem_stack[i] = __value[o];
+            this-> mem_stack_set(__value[o], i);
             o ++;
         }
         return;
@@ -344,11 +397,11 @@ char * mdl::tagged_memory::dump_stack_memory(bool __return)
 
     /* if debugging is enabled then we will print the stack to the terminal */
     for (size_t i = 0; i != this-> mem_stack.size(); i ++) {
-        if (this-> mem_stack[i] == '\0') break;
-        re[i] = this-> mem_stack[i];
+        if (this-> mem_stack_get(i) == '\0') break;
+        re[i] = this-> mem_stack_get(i);
 
         if (this-> debug_logging)
-            printf("\x1B[0m%c\x1B[32m|\x1B[0m", this-> mem_stack[i]);
+            printf("\x1B[0m%c\x1B[32m|\x1B[0m", this-> mem_stack_get(i));
     } printf("\n");
 
     /* if we are only wanting it to print to the terminal then __return = false
@@ -378,7 +431,8 @@ void mdl::tagged_memory::load_mem_stack_from_file(char const * __file_path, char
     while ( std::getline (ifile, each_line) ) {
         char const * tmp = each_line.c_str();
         for (size_t i = point; i != point + strlen(tmp); i++) {
-            this-> mem_stack(i) = tmp[o];
+            //this-> mem_stack(i) = tmp[o];
+            this-> mem_stack_set(tmp[o], i);
             o++;
         }
 
@@ -586,8 +640,8 @@ void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, 
     (* itor)[1] = (insert_addr + length_of_mem) - 2;/*this seems to leave the ending tag at the end of the value output, but this fixed might need to look into it*/
     size_t o = 0;
     for (size_t i = insert_addr; i != insert_addr + length_of_mem; i ++) {
-        this-> mem_stack(i) = tmp[o];
-
+        //this-> mem_stack(i) = tmp[o];
+        this-> mem_stack_set(tmp[o], i);
         o++;
     }
   
@@ -599,9 +653,8 @@ void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, 
     lo.list_points.swap(list_points);
     std::size_t st = insert_addr + length_of_mem;
 
-    for (std::size_t i = st; i != st + __null_space; i ++) {
-        this-> mem_stack(i) = BLANK_MEMORY;
-    }
+    for (std::size_t i = st; i != st + __null_space; i ++)
+        this-> mem_stack_set(BLANK_MEMORY, i);
 
     std::free(tmp);
  
@@ -652,7 +705,7 @@ void mdl::tagged_memory::save_mem_stack_to_file(char const * __file_path, char c
             printf("\x1B[31m -- failed to open file.\x1B[0m\n");
     }
 
-    char * memory = dump_stack_memory();
+    char * memory = dump_stack_memory(true);
 
     ofile << memory;
     ofile.close();
@@ -677,11 +730,11 @@ size_t mdl::tagged_memory::find_mem_addr_it_pos(uint_t __addr, bool & __error) {
 }
 
 size_t mdl::tagged_memory::get_mem_name_len(uint_t __addr, bool & __error) {
-    if (this-> mem_stack[__addr] != this-> seporator_tags[sp_t::__mem_begin]) {__error = true; return 0;}
+    if (this-> mem_stack_get(__addr) != this-> seporator_tags[sp_t::__mem_begin]) {__error = true; return 0;}
  
     size_t length_of_name = 0;
     for(size_t i = (__addr +1);; i++) {
-        if (this-> mem_stack[i] == this-> seporator_tags[sp_t::__mem_middle]) break;
+        if (this-> mem_stack_get(i) == this-> seporator_tags[sp_t::__mem_middle]) break;
         length_of_name++; 
     }
 
@@ -732,7 +785,7 @@ char * mdl::tagged_memory::get_mem_name(uint_t __addr, bool & __error)
 
     std::size_t o = 0;
     for (std::size_t i = (__addr + 1) ; i != ((__addr + 1) + length_of_name) - reduction; i ++) {
-        __name[o] = this-> mem_stack[i];
+        __name[o] = this-> mem_stack_get(i);
         o ++; 
     }
     __name[o] = '\0';
@@ -749,28 +802,32 @@ void mdl::tagged_memory::insert_into_mem_stack(char __mem, uint_t __addr, bool &
         printf("\x1B[33minserting '%c' into stack at addr %d\x1B[0m\n", __mem, __addr);
 
     for (size_t i = (this-> mem_stack.size() - 1); i != __addr; i --) {
-        if (this-> mem_stack[i-1] == '\0') continue;
+        if (this-> mem_stack_get(i - 1) == '\0') continue;
         if (this-> debug_logging)
             printf("\x1B[35mmoving memory at addr %ld to %ld\x1B[0m\n", (i - 1), i);
-        this-> mem_stack(i) = this-> mem_stack[i - 1];
-        this-> mem_stack(i - 1) = ' ';
+        //this-> mem_stack(i) = this-> mem_stack[i - 1];
+        this-> mem_stack_set(this-> mem_stack_get(i - 1), i);
+        //this-> mem_stack(i - 1) = ' ';
+        this-> mem_stack_set(BLANK_MEMORY, i - 1);
     }
 
-    this-> mem_stack(__addr) = __mem;
+    this-> mem_stack_set(__mem, __addr);
+//    this-> mem_stack(__addr) = __mem;
 }
 
 void mdl::tagged_memory::uninsert_from_mem_stack(uint_t __addr, bool & __error)
 {
     if (this-> debug_logging)
-        printf("\x1B[33muninserting '%c' from stack at addr %d\x1B[0m\n", this-> mem_stack[__addr], __addr);
+        printf("\x1B[33muninserting '%c' from stack at addr %d\x1B[0m\n", this-> mem_stack_get(__addr), __addr);
 
     this-> mem_stack(__addr) = ' ';
 
     for (size_t i = __addr; i != (this-> mem_stack.size() - 1); i ++) {
-        if (this-> mem_stack[i] == '\0') continue;
+        if (this-> mem_stack_get(i) == '\0') continue;
         if (this-> debug_logging)
             printf("\x1B[35mmoving memory at addr %ld to %ld\x1B[0m\n", (i + 1), i);
-        this-> mem_stack(i) = this-> mem_stack[i + 1];
+        this-> mem_stack_set(this-> mem_stack_get(i + 1), i);
+//        this-> mem_stack(i) = this-> mem_stack[i + 1];
     }
 }
 
@@ -806,8 +863,8 @@ uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
             */
 
             if (this-> debug_logging)
-                printf("\x1B[33mmatching char '%c' and '%c'\x1B[0m\n", this-> mem_stack[i], __name[name_char_pos]);
-            if (this-> mem_stack[i] == __name[name_char_pos]) {
+                printf("\x1B[33mmatching char '%c' and '%c'\x1B[0m\n", this-> mem_stack_get(i), __name[name_char_pos]);
+            if (this-> mem_stack_get(i) == __name[name_char_pos]) {
                 mem_match_count ++;
                 if (this-> debug_logging)
                     printf("\x1B[42mmatch found at addr %ld\x1B[0m\n", i);
@@ -816,7 +873,7 @@ uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
                     printf("\x1B[41mmatch not found at addr %ld\x1B[0m\n", i);
             }
 
-            if (this-> mem_stack[i] == this-> seporator_tags[sp_t::__mem_middle]) {
+            if (this-> mem_stack_get(i) == this-> seporator_tags[sp_t::__mem_middle]) {
                 /* this was added in to fix a placment error but if any errors occur after this edit it might be because of this*/
                 mem_match_count = 0;
                 name_char_pos = 0;
@@ -828,13 +885,13 @@ uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
             */
             if ((name_char_pos + 1) == length_of_name) {
                 
-                bool is_next_seporator = this-> mem_stack[i + 1] == this-> seporator_tags[sp_t::__mem_middle]? true : false; 
+                bool is_next_seporator = this-> mem_stack_get(i + 1) == this-> seporator_tags[sp_t::__mem_middle]? true : false; 
 
                 /* if it's in a list type format then the next char will not be the nm seporator it will
                 * be the beginning of the list size
                 */ 
                 if (this-> mem_info[mem_addrs_pos].is_list_type) {
-                    is_next_seporator = this-> mem_stack[i + 1] == LIST_LEN_BTAG? true : false;
+                    is_next_seporator = this-> mem_stack_get(i + 1) == LIST_LEN_BTAG? true : false;
                 }
 
                 if (mem_match_count == length_of_name && is_next_seporator) {
@@ -848,7 +905,7 @@ uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
                     printf("\x1B[36mmatching failed. %ld out of %ld correct.\x1B[0m\n", mem_match_count, length_of_name);
 
                     if (!is_next_seporator) {
-                        printf("\x1B[31mnext char dose not equal '%c' but equals '%c'\x1B[0m\n", this-> seporator_tags[sp_t::__mem_middle], this-> mem_stack[i + 1]);
+                        printf("\x1B[31mnext char dose not equal '%c' but equals '%c'\x1B[0m\n", this-> seporator_tags[sp_t::__mem_middle], this-> mem_stack_get(i + 1));
                     }
                 }
             
@@ -891,7 +948,7 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     */
     std::size_t free_space = 0;
     for (std::size_t i = (* itor)[1] + 2;; i ++) {
-        if (this-> mem_stack[i] == BLANK_MEMORY) free_space ++; else break;
+        if (this-> mem_stack_get(i) == BLANK_MEMORY) free_space ++; else break;
     }
 
     bool is_same_len = false;
@@ -900,15 +957,16 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
     size_t amount_changed = 0;
     std::size_t extra_frm = 0;
     for (size_t i = ((* itor)[0] + 1);; i ++) {
-        if (this-> mem_stack[rm] == this-> seporator_tags[sp_t::__mem_middle] && !grater && !is_same_len) {
+        if (this-> mem_stack_get(rm) == this-> seporator_tags[sp_t::__mem_middle] && !grater && !is_same_len) {
             if (resize_to_fit) {
                 if (free_space == 0) {
                     this-> insert_into_mem_stack(BLANK_MEMORY, rm, __error);
                     amount_changed ++;
                 } else {
                     for (std::size_t l = (* itor)[1] + 1; l != (rm - 1); l --) {
-                        this-> mem_stack[l + 1] = this-> mem_stack[l];
-                        this-> mem_stack[l] = BLANK_MEMORY;
+                        this-> mem_stack_set(this-> mem_stack_get(l), l + 1);
+                        //this-> mem_stack[l + 1] = this-> mem_stack[l];
+                        this-> mem_stack_set(BLANK_MEMORY, l);
                     }
                 
                     free_space --;
@@ -919,11 +977,12 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
             less = true;
         }
 
-        this-> mem_stack(i) = __name[o]; 
+        this-> mem_stack_set(__name[o], i);
+//        this-> mem_stack(i) = __name[o]; 
 
         if (o == (strlen(__name) - 1))  {
             if (is_same_len) break;
-            if (this-> mem_stack[rm] != this-> seporator_tags[sp_t::__mem_middle] && !less) {
+            if (this-> mem_stack_get(rm) != this-> seporator_tags[sp_t::__mem_middle] && !less) {
                 this-> uninsert_from_mem_stack(rm, __error);
                 (* itor)[1] --;
                 amount_changed ++;
@@ -1044,7 +1103,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     bool bypass = strlen(__value) == length_of_value? true : false;
     std::size_t extra_frm = 0;
     for (size_t i = ((* itor)[0] + 1) + (length_of_name + 1);; i++ ) {
-        if (this-> mem_stack[i] == this-> seporator_tags[sp_t::__mem_begin] && !len && !tsmall) extra ++;
+        if (this-> mem_stack_get(i) == this-> seporator_tags[sp_t::__mem_begin] && !len && !tsmall) extra ++;
 
         if (o == strlen(__value)) {
             if (tsmall || bypass) break;
@@ -1055,17 +1114,19 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
             }
 
             if (len) {
-                if (this-> mem_stack[rm] == this-> seporator_tags[sp_t::__mem_end] && extra == 0) {
+                if (this-> mem_stack_get(rm) == this-> seporator_tags[sp_t::__mem_end] && extra == 0) {
                     break;
                 }
                 else
                 {
                     if (!resize_to_fit)
                     { 
-                        this-> mem_stack[rm] = this-> mem_stack[(rm + extra_frm) + 1];
-                        this-> mem_stack[(rm + extra_frm) + 1] = ' ';
+                        this-> mem_stack_set(this-> mem_stack_get((rm + extra_frm) + 1), rm);// 
+                        //this-> mem_stack[rm] = this-> mem_stack[(rm + extra_frm) + 1];
+                        //this-> mem_stack[(rm + extra_frm) + 1] = ' ';
+                        this-> mem_stack_set(BLANK_MEMORY, (rm + extra_frm) + 1);
 
-                        if (this-> mem_stack[rm] == this-> seporator_tags[sp_t::__mem_end]) extra --;
+                        if (this-> mem_stack_get(rm) == this-> seporator_tags[sp_t::__mem_end]) extra --;
                         extra_frm ++;
                     }
 
@@ -1073,7 +1134,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     { 
                         this-> uninsert_from_mem_stack(rm, __error); 
 
-                        if (this-> mem_stack[rm] == this-> seporator_tags[sp_t::__mem_end]) extra --;
+                        if (this-> mem_stack_get(rm) == this-> seporator_tags[sp_t::__mem_end]) extra --;
                     } 
                 }
             } 
@@ -1091,11 +1152,11 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     */
                     if (resize_to_fit)
                     {
-                        if (this-> mem_stack[i + 1] != ' ') {
+                        if (this-> mem_stack_get(i + 1) != ' ') {
                             this-> insert_into_mem_stack(' ', i, __error);
                             did_addrs_change = true;
                         } else  
-                            this-> mem_stack[i + 1] = this-> mem_stack[i];
+                            this-> mem_stack_set(this-> mem_stack_get(i), i + 1);
 
                     } else {
                         this-> insert_into_mem_stack(' ', i, __error);
@@ -1103,7 +1164,8 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     }
                 }
             }
-            this-> mem_stack(i) = __value[o];
+            this-> mem_stack_set(__value[o], i);
+            //this-> mem_stack(i) = __value[o];
 
             o ++;
             rm = i+1;
@@ -1194,7 +1256,7 @@ char * mdl::tagged_memory::get_mem_value(uint_t __addr, bool & __error, uint_t _
     std::size_t o = 0;
     if (this-> mem_info[ad].is_list_type && __no_list == false) {
        for (std::size_t i = list_sep_point ; i != (list_sep_point + length_of_value) ; i ++ ) {
-            tmp[o] = this-> mem_stack[i];
+            tmp[o] = this-> mem_stack_get(i);
             o ++;
         }
        
@@ -1203,7 +1265,7 @@ char * mdl::tagged_memory::get_mem_value(uint_t __addr, bool & __error, uint_t _
     
  
     for (std::size_t i = ((* itor)[0] + 1) + (length_of_name + 1); i != (* itor)[1] + 1; i++ ) {
-        tmp[o] = this-> mem_stack[i];
+        tmp[o] = this-> mem_stack_get(i);
         o ++;
     }
    
@@ -1247,8 +1309,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
     float finished_precentage = 0.00;
     bool is_value_str_type = false;
     uint_t str_begin_tag_addr = 0;
-    uint_t comment_tpos = 0;
-   
+    
     bool comment_begin_tag = false;
     uint_t comment_begin_eaddr = 0;
     if (this-> debug_logging)
@@ -1263,7 +1324,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
         * we have found a \0 in the vector as all the vector elements get set to that
         * in the constructor.
         */
-        if (this-> mem_stack[mem_stack_pos] == '\0') { 
+        if (this-> mem_stack_get(mem_stack_pos) == '\0') { 
             if (this-> debug_logging)
                 printf("\x1B[31mbreaking from loop. next char equls '\\0'\x1B[0m\n");
 
@@ -1275,7 +1336,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
         if (! comment_begin_tag) {
             uint_t match_count = 0;
             for (std::size_t i = 0 ; i != sizeof(COMMENT_BTAG) ; i ++)
-                if (this-> mem_stack[(mem_stack_pos + i)] == COMMENT_BTAG[i]) match_count ++;
+                if (this-> mem_stack_get(mem_stack_pos + i) == COMMENT_BTAG[i]) match_count ++;
 
             if (match_count == sizeof(COMMENT_BTAG)) {
                 comment_begin_eaddr = (mem_stack_pos + sizeof(COMMENT_BTAG));
@@ -1289,7 +1350,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
         if (comment_begin_tag && mem_stack_pos > comment_begin_eaddr) {
             uint_t match_count = 0;
             for (std::size_t i = 0 ; i != sizeof(COMMENT_ETAG) ; i ++)
-                if (this-> mem_stack[(mem_stack_pos + i)] == COMMENT_ETAG[i]) match_count ++;
+                if (this-> mem_stack_get(mem_stack_pos + i) == COMMENT_ETAG[i]) match_count ++;
 
             if (match_count == sizeof(COMMENT_ETAG)) {
                 comment_begin_tag = false;
@@ -1302,7 +1363,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 goto end;
         }
 
-        if (this-> mem_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__mem_begin] && !is_value_str_type)
+        if (this-> mem_stack_get(mem_stack_pos) == this-> seporator_tags[sp_t::__mem_begin] && !is_value_str_type)
         {
             if (this-> debug_logging)
                 printf("\x1B[35mfound beginning seporator as addr %ld\x1B[0m\n", mem_stack_pos);
@@ -1310,7 +1371,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             /* if the next char in the memory stack is the ending tag there is no point of this, and
             * it would cause errors as theres to middle tag so that means no name or value.
             */
-            if (this-> mem_stack[mem_stack_pos + 1] != this-> seporator_tags[sp_t::__mem_end]) {
+            if (this-> mem_stack_get(mem_stack_pos + 1) != this-> seporator_tags[sp_t::__mem_end]) {
                 if (! found_mem_begin_ts) {
                     if (this-> debug_logging)
                         printf("\x1B[33mmemory begin has been set at addr %ld\x1B[0m\n", mem_stack_pos);
@@ -1328,7 +1389,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
         {   
             /* check if the current pos in the memory stack equls the string beginning tag
             */
-            if (this-> mem_stack[mem_stack_pos] == STR_BEGIN_TAG && found_mid_tag && !is_value_str_type) {
+            if (this-> mem_stack_get(mem_stack_pos) == STR_BEGIN_TAG && found_mid_tag && !is_value_str_type) {
                 if (this-> debug_logging)
                     printf("\x1B[35mfound string beginning tag at addr %ld\x1B[0m\n", mem_stack_pos);
 
@@ -1338,7 +1399,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 str_begin_tag_addr = mem_stack_pos;
             }
 
-            if (is_value_str_type && (this-> mem_stack[mem_stack_pos] == this-> mem_stack[str_begin_tag_addr]) && mem_stack_pos != str_begin_tag_addr) {
+            if (is_value_str_type && (this-> mem_stack_get(mem_stack_pos) == this-> mem_stack_get(str_begin_tag_addr)) && mem_stack_pos != str_begin_tag_addr) {
                 if (this-> debug_logging)
                     printf("\x1B[35mfound string ending tag at addr %ld\x1B[0m\n", mem_stack_pos);
 
@@ -1348,7 +1409,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 str_begin_tag_addr = 0;
             }
  
-            if (this-> mem_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__mem_middle] && !is_value_str_type) { 
+            if (this-> mem_stack_get(mem_stack_pos) == this-> seporator_tags[sp_t::__mem_middle] && !is_value_str_type) { 
                 if (this-> debug_logging)
                     printf("found middle tag at addr %ld\n", mem_stack_pos);
 
@@ -1357,7 +1418,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             }           
 
             // this is before the mid tag 
-            if (this-> mem_stack[mem_stack_pos] == LIST_LEN_BTAG && !found_mid_tag) {
+            if (this-> mem_stack_get(mem_stack_pos) == LIST_LEN_BTAG && !found_mid_tag) {
                 if (this-> debug_logging)
                     printf("\x1B[35mfound list beginning tag at addr %ld\x1B[0m\n", mem_stack_pos);
 
@@ -1365,7 +1426,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 lb_tag_addr = mem_stack_pos; 
             }
      
-            if (found_mem_begin_ts && this-> mem_stack[mem_stack_pos] == MEM_LIST_TAG && !is_value_str_type) { 
+            if (found_mem_begin_ts && this-> mem_stack_get(mem_stack_pos) == MEM_LIST_TAG && !is_value_str_type) { 
                 list_elength.resize(list_elength.size() + 1);
                 list_elength(list_sep_tcount) = (mem_stack_pos - (list_sep_tcount == 0? mid_tag_addr : last_lpoint)) - 1;
  
@@ -1376,7 +1437,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                 last_lpoint = mem_stack_pos;
             }
 
-            if (this-> mem_stack[mem_stack_pos] == LIST_LEN_ETAG && ! found_mid_tag && !is_value_str_type) {
+            if (this-> mem_stack_get(mem_stack_pos) == LIST_LEN_ETAG && ! found_mid_tag && !is_value_str_type) {
                 if (found_list_begin && mem_stack_pos != lb_tag_addr) {
                     if (this-> debug_logging)
                         printf("\x1B[35mfound list ending tag at addr %ld\x1B[0m\n", mem_stack_pos);
@@ -1388,7 +1449,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
             }            
         }
 
-        if (this-> mem_stack[mem_stack_pos] == this-> seporator_tags[sp_t::__mem_end] && found_mem_begin_ts && mem_stack_pos != mem_begin_ts_addr && !is_value_str_type)
+        if (this-> mem_stack_get(mem_stack_pos) == this-> seporator_tags[sp_t::__mem_end] && found_mem_begin_ts && mem_stack_pos != mem_begin_ts_addr && !is_value_str_type)
         {
             if (this-> debug_logging)
                 printf("\x1B[35mfound ending seporator as addr %ld\x1B[0m\n", mem_stack_pos);
@@ -1442,7 +1503,7 @@ void mdl::tagged_memory::analyze_stack_memory(bool & __error)
                     */
                     std::size_t j = 0;
                     for (std::size_t p = lb_tag_addr + 1; p != le_tag_addr; p ++) {
-                        list_len[j] = this-> mem_stack[p];
+                        list_len[j] = this-> mem_stack_get(p);
                         j++;
                     }
 
@@ -1509,7 +1570,8 @@ void mdl::tagged_memory::dump_into_stack(ublas::vector<char> __memory)
     size_t length_of_string = __memory.size();
 
     for (size_t i = stack_begin_address; i != length_of_string + stack_begin_address; i ++)
-        this-> mem_stack(i) = __memory[i - stack_begin_address];
+        this-> mem_stack_set(__memory[i - stack_begin_address], i);
+//      this-> mem_stack(i) = __memory[i - stack_begin_address];
 }
 
 void mdl::tagged_memory::dump_into_stack(char const * __memory)
@@ -1533,5 +1595,6 @@ void mdl::tagged_memory::dump_into_stack(char const * __memory)
     size_t length_of_string = strlen(__memory);
 
     for (size_t i = stack_begin_address; i != length_of_string + stack_begin_address; i ++)
-        this-> mem_stack(i) = __memory[i - stack_begin_address];
+        this-> mem_stack_set(__memory[i - stack_begin_address], i);
+//        this-> mem_stack(i) = __memory[i - stack_begin_address];
 }
