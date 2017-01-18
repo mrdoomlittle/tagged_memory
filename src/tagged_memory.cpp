@@ -1154,8 +1154,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     if (!resize_to_fit)
                     { 
                         this-> mem_stack_set(this-> mem_stack_get((rm + extra_frm) + 1), rm);
-                        //this-> mem_stack[rm] = this-> mem_stack[(rm + extra_frm) + 1];
-                        //this-> mem_stack[(rm + extra_frm) + 1] = ' ';
+                        
                         this-> mem_stack_set(BLANK_MEMORY, (rm + extra_frm) + 1);
 
                         if (this-> mem_stack_get(rm) == this-> seporator_tags[sp_t::__mem_end]) extra --;
@@ -1182,7 +1181,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     * that pice of memory we dont need to push all the elements in the stack
                     * up by one.
                     */
-                    if (resize_to_fit)
+                    if (!resize_to_fit)
                     {
                         if (this-> mem_stack_get(i + 1) != BLANK_MEMORY) {
                             this-> insert_into_mem_stack(BLANK_MEMORY, i, __error);
@@ -1227,7 +1226,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         g = true;
     }
 
-    if (before == (* itor)[1]) return;
+    if (before == (* itor)[1] || ! did_addrs_change) return;
     
     std::size_t cid = (ad + 1);
 

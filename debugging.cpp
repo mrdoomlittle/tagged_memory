@@ -46,7 +46,7 @@ int main()
     * e.g. {example_0;}@@@@@@@@@@@{example_1;} 
     * @ = space
     */
-    example.dump_into_stack("  {example_0;test}      {example_1;k}");
+    example.dump_into_stack("{example_0;21299}    {example_1<2>;a,b}");
     /* analyze the charset that was put into the stack */
     example.analyze_stack_memory(error);
     
@@ -74,8 +74,6 @@ int main()
 
     //example.mem_free("example_0", error, true);
 
-//    example.dump_stack_memory();
-
 
     /* mdl::tagged_memory::mem_t
     * allows you to access the data at a point in the stack
@@ -85,13 +83,7 @@ int main()
 
     ex[0] = new mdl::tagged_memory::mem_t(0/*id*/, (& example), &error_info);
     ex[1] = new mdl::tagged_memory::mem_t(1/*id*/, (& example), &error_info);
-    
-    // move example
-    //mdl::tagged_memory::mem_t & temp = *ex[0];
-    // move it 2 places to the left
-    //temp << 2;
-    // right: temp >> 2;
-
+  
     /* print the data to terminal
     */
     for (std::size_t o = 0; o != 2; o ++) { 
@@ -108,19 +100,22 @@ int main()
 
     auto begin = std::chrono::high_resolution_clock::now();
 
+    /* if we are going to the the same mem value for e.g. 255 times
+    * using this it will only check / find the name the the mem once.
+    */
     mdl::tagged_memory::id_cache_t id_cache;
     id_cache.caching = true;
     id_cache.call_amount = 255;
+
     /* example set
     */
     for (std::size_t i = 0; i != 256; i ++) {
         std::string s = std::to_string(i);
         example.set_mem_value("example_0", s.c_str(), id_cache, error);
-
     }
 
     /* list example: mem_name<list_addr> */
-    char * tmp = example.get_mem_value("example_0", error);
+    char * tmp = example.get_mem_value("example_1<0>", error);
     
     // or example.get_mem_value("example_0", error, list_addr, false);
 
