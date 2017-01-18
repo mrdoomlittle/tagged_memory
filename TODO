@@ -18,6 +18,6 @@ sorry for my english :(
 
 	.give a option to read from the file without dumping it into memory
 	
-	.add a extra var to the set_mem_value func this will indicate how
-	many times over it will be called, knowing this we will be able to speed things
-	up by not needing to cehck the name for a match over and over or the list addr.
+	.add ceching to the setting and getting funcs e.g. allow the user
+	to say how many times this same mem name will be used so we only 
+	need to match the mem name once.

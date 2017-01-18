@@ -4,7 +4,7 @@
 */
 
 mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
-    std::initializer_list<boost::uint8_t> __seporator_tags, eoptions_t __extra_options, bool __debug_logging)
+    std::initializer_list<boost::uint8_t> __seporator_tags, extra_options_t __extra_options, bool __debug_logging)
 {
     /* check if the list size is grater then 0 if so then
     * we can get the data in the list for that seporator else
@@ -27,9 +27,10 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     */
     this-> mem_stack.resize(__allocated_memory);
     for (size_t i = 0; i != __allocated_memory; i ++)
-        if (!__extra_options.fcontains_data)
+        if (!__extra_options.fcontains_data && __extra_options.fdirect_rw)
             this-> mem_stack_set(0x0, i);
-//        this-> mem_stack(i) = 0x0;
+		else 
+			this-> mem_stack_set(0x0, i);
 
     this-> extra_options = __extra_options;
 }
@@ -318,7 +319,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         o ++;
     }
 
-    this-> set_mem_value(__name, aft, __error);    
+    this-> set_mem_value(__name, aft, null_idc, __error);    
    
     for (std::size_t i = __list_addr + 1; i != this-> mem_info[ad].list_points.size(); i ++) {
         if (g) this-> mem_info[ad].list_points(i) += change; 
@@ -380,6 +381,11 @@ bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * _
             * the string isn't going to be the same.
             */
             break;
+
+        /*  check the end of the string for no match
+        */
+        std::size_t o = (len_of_string_0 - i); 
+        if (__string_0[o] != __string_1[o]) break;
     }
 
     /* if we have matched the same amount of chars compared to the length.
@@ -1051,7 +1057,7 @@ char * mdl::tagged_memory::extract_list_addr(char const * __name,
     return name;
 }
 
-void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, bool & __error)
+void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value, id_cache_t & __id_cache, bool & __error)
 {
     bool resize_to_fit = RESIZE_TO_FIT;
    
@@ -1085,14 +1091,35 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         return;
     }
 
-    uint_t mem_location = this-> get_mem_addr(__name, __error);
+    uint_t mem_location = 0;
+
+    if (! __id_cache.caching)
+        mem_location = this-> get_mem_addr(__name, __error);
+    else {
+        if (__id_cache.call_count == 0) {
+            mem_location = this-> get_mem_addr(__name, __error);
+            __id_cache.mem_addr = mem_location;
+        } else
+            mem_location = __id_cache.mem_addr;
+    }
 
     bool found_list_indec_tags = false;
 
     ublas::vector<boost::array<uint_t, 2>>
         ::iterator itor = this-> mem_addrs.begin();
 
-    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+    std::size_t ad = 0;
+    
+    if (! __id_cache.caching)
+        ad = find_mem_addr_it_pos(mem_location, __error);
+    else {
+        if (__id_cache.call_count == 0) {
+            ad = find_mem_addr_it_pos(mem_location, __error);
+            __id_cache.mem_id = ad;
+        } else
+            ad = __id_cache.mem_id;
+    }
+
     itor += ad;
 
     size_t length_of_name = get_mem_name_len(mem_location, __error); 
@@ -1169,15 +1196,21 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
                     }
                 }
             }
-            this-> mem_stack_set(__value[o], i);
-            //this-> mem_stack(i) = __value[o];
 
+            this-> mem_stack_set(__value[o], i);
+   
             o ++;
             rm = i+1;
 
         }
     }
     
+    if (__id_cache.caching)
+        if (__id_cache.call_count == __id_cache.call_amount)
+            __id_cache.call_count = 0;
+        else
+            __id_cache.call_count += 1;    
+
     size_t before = (* itor)[1];
     (* itor)[1] = ((* itor)[0] + strlen(__value) + (length_of_name + 1));
 

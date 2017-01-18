@@ -20,16 +20,24 @@ int main()
     * work when not inside a var e.g. below
     */
 
-    mdl::tagged_memory::eoptions_t eo;
+    mdl::tagged_memory::extra_options_t eo;
 
-    // NOTE: implement this   
+    /* if fdirect_rw is true then it will read directly from a file
+	* and not from memory.
+ 	*/ 
     eo.fdirect_rw = false;
+
+	// does the file contain dataw
     eo.fcontains_data = false;
+
+	// if the file is not specified when calling
+	// the function to save or load then  it will
+	// defualt to this else  DEF_MINFO_FILE / DEF MADDRS_FILE
     eo.mem_info_file = "mem_info.dat";
     eo.mem_addrs_file = "mem_addrs.dat";
 
     /* create */
-    mdl::tmem_t example(128, {'{', ';', '}'}, eo, false/*debug info*/);
+    mdl::tmem_t example(128, {'{', ';', '}'}, eo, true/*debug info*/);
 
     /* dump charset into the stack */
     //example.dump_into_stack("/*NOTE: the tag < & > are for list length*/{example_0<2>;ex[0], ex[0][1]}{example_1<3>;ex[1],P,a}");
@@ -38,7 +46,7 @@ int main()
     * e.g. {example_0;}@@@@@@@@@@@{example_1;} 
     * @ = space
     */
-    example.dump_into_stack("{example_0;}      {example_1;}");
+    example.dump_into_stack("  {example_0;test}      {example_1;k}");
     /* analyze the charset that was put into the stack */
     example.analyze_stack_memory(error);
     
@@ -59,6 +67,16 @@ int main()
     //example.load_mem_info();
     //example.load_mem_addrs(); 
 
+
+    //example.mem_alloc(2, true);
+
+    //example.mem_mov(0, 2, MEM_MOVB);
+
+    //example.mem_free("example_0", error, true);
+
+//    example.dump_stack_memory();
+
+
     /* mdl::tagged_memory::mem_t
     * allows you to access the data at a point in the stack
     * without needing to use a function.
@@ -68,6 +86,12 @@ int main()
     ex[0] = new mdl::tagged_memory::mem_t(0/*id*/, (& example), &error_info);
     ex[1] = new mdl::tagged_memory::mem_t(1/*id*/, (& example), &error_info);
     
+    // move example
+    //mdl::tagged_memory::mem_t & temp = *ex[0];
+    // move it 2 places to the left
+    //temp << 2;
+    // right: temp >> 2;
+
     /* print the data to terminal
     */
     for (std::size_t o = 0; o != 2; o ++) { 
@@ -84,11 +108,14 @@ int main()
 
     auto begin = std::chrono::high_resolution_clock::now();
 
+    mdl::tagged_memory::id_cache_t id_cache;
+    id_cache.caching = true;
+    id_cache.call_amount = 255;
     /* example set
     */
     for (std::size_t i = 0; i != 256; i ++) {
         std::string s = std::to_string(i);
-        example.set_mem_value("example_0", s.c_str(), error);
+        example.set_mem_value("example_0", s.c_str(), id_cache, error);
 
     }
 
