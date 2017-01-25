@@ -49,7 +49,8 @@ constexpr char COMMENT_ETAG[2] = {'*', '/'};
 # include <boost/array.hpp>
 namespace ublas = boost::numeric::ublas;
 
-/* note need to rename this */
+//# include <eint_t.hpp>
+// note to remove this and uncomment above
 typedef boost::uint16_t uint_t;
 
 namespace mdl { class tagged_memory
@@ -69,10 +70,34 @@ namespace mdl { class tagged_memory
 
     typedef struct {
         bool caching = false;
+
+		/* the id of the memory
+		*/
         std::size_t mem_id = 0;
+
+		/* the addr of the memory
+		*/
         uint_t mem_addr = 0;
+
+		/* how many times will it be called
+		*/
         std::size_t call_amount = 0;
+
+		/* starts from 0
+		*/
         std::size_t call_count = 0;
+
+		/* length of the mem name
+		*/
+		std::size_t mem_nme_len = 0;
+
+		bool mem_addr_ok = false;
+
+		char * mem_name = nullptr;
+		std::size_t list_pointer = 0;
+
+		std::size_t ltaddr_b, ltaddr_e;
+		bool locked_list = false;
     } id_cache_t;
 
     id_cache_t null_idc;
@@ -81,14 +106,14 @@ namespace mdl { class tagged_memory
     struct arc {
         arc(FILE * __fs, char __typ) : fs(__fs), typ(__typ) {}
 
-        arc operator&(std::size_t __size) {
+        void operator&(std::size_t __size) {
             if (typ == 's')
                 this-> size += __size;
             else
                 this-> size = __size;
         }
 
-        arc operator<<(void * __obj) {
+        void operator<<(void * __obj) {
             switch(typ) {
                 case 'r':
                     fread(__obj, size, 1, fs);
@@ -96,14 +121,14 @@ namespace mdl { class tagged_memory
                 case 'w':
                     fwrite(__obj, size, 1, fs);
                 break;
-            } 
+            }
         }
-    
-        arc operator|(char __typ) {
+
+        void operator|(char __typ) {
             size = 0;
             typ = __typ;
         }
-     
+
         std::size_t size = 0;
         char typ = '\0';
         FILE * fs;
@@ -173,19 +198,23 @@ namespace mdl { class tagged_memory
     /* get the name of the memory from a id/address */
     char * get_mem_name(uint_t __addr, bool & __error);
 
-    char * get_mem_value(char const * __name, bool & __error, uint_t __list_addr = 0, bool __no_list = true);
+    char * get_mem_value(char const * __name, id_cache_t & __id_cache, bool & __error, uint_t __list_addr = 0, bool __no_list = true);
 
     /* get the value of the memory from a id/address */
-    char * get_mem_value(uint_t __addr, bool & __error, uint_t __list_addr, bool __no_list = true);
+    char * get_mem_value(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, bool & __error, uint_t __list_addr, bool __no_list = true);
 
     /* find the address corresponding to the one passed thru and return the amount
     * that the iterator should be iterated
     */
-    size_t find_mem_addr_it_pos(uint_t __addr, bool & __error);
+    std::size_t find_mem_addr_it_pos(uint_t __addr, bool & __error);
+
+    std::size_t  get_mem_id(uint_t __addr, bool & __error) {
+        return this-> find_mem_addr_it_pos(__addr, __error);
+    } 
 
     /* starting from the start get the length from { to :
     */
-    size_t get_mem_name_len(uint_t __addr, bool & __error);
+    std::size_t get_mem_name_len(uint_t __addr, bool & __error);
 
     /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
@@ -218,12 +247,16 @@ namespace mdl { class tagged_memory
             return true;
         }
 
-        __mem_t operator>>(std::size_t __amount) {
+        void operator>>(std::size_t __amount) {
             _this-> mem_mov(element_id, __amount, MEM_MOVF);
         }
 
-        __mem_t operator<<(std::size_t __amount) {
+        void operator<<(std::size_t __amount) {
             _this-> mem_mov(element_id, __amount, MEM_MOVB);
+        }
+
+        char * operator=(char const * __mem) {
+            return nullptr;
         }
 
         boost::uint8_t operator[](std::size_t __addr) {
@@ -428,6 +461,7 @@ namespace mdl { class tagged_memory
     void mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr);
     boost::uint8_t mem_stack_get(std::size_t __mem_addr);
 } ;
+    static tagged_memory::id_cache_t null_idc;
     typedef tagged_memory tmem_t;
 }
 

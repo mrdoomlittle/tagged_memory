@@ -26,11 +26,13 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     * uses it to determine the length of a char * array
     */
     this-> mem_stack.resize(__allocated_memory);
-    for (size_t i = 0; i != __allocated_memory; i ++)
+    for (size_t i = 0; i != __allocated_memory; i ++) {
         if (!__extra_options.fcontains_data && __extra_options.fdirect_rw)
             this-> mem_stack_set(0x0, i);
-		else 
-			this-> mem_stack_set(0x0, i);
+		else
+			if (! __extra_options.fdirect_rw)
+				this-> mem_stack_set(0x0, i);
+	}
 
     this-> extra_options = __extra_options;
 }
@@ -237,7 +239,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
 
     /* get the current value of the pice of memory
     */
-    char * tmp = this-> get_mem_value(__name, __error, 0, true);
+    char * tmp = this-> get_mem_value(__name, null_idc, __error, 0, true);
 
     /* calulate the length of the string
     */
@@ -348,11 +350,19 @@ bool mdl::tagged_memory::does_mem_name_exist(char const * __mem_name, bool & __e
 
 bool mdl::tagged_memory::compare_mem_values(char const * __mem_name_0, char const * __mem_name_1, bool & __error)
 {
-    /* use the compare strings function and then return the result
-    * NOTE: the only way to comapre list elements is to pass somthing like this as the name 'example[ list pos ]'
-    */
-    return this-> compare_strings(this-> get_mem_value(__mem_name_0, __error, 0, true), 
-        this-> get_mem_value(__mem_name_1, __error, 0, true));
+	char * mem_value_0 = this-> get_mem_value(__mem_name_0, null_idc, __error, 0, true);
+	char * mem_value_1 = this-> get_mem_value(__mem_name_1, null_idc, __error, 0, true);
+
+    /* use the compare strings function to comapre the mem values */
+	bool compare_result = this-> compare_strings(mem_value_0, mem_value_1);
+
+	/* free the memory that the mem values used.
+	*/
+	std::free(mem_value_0);
+	std::free(mem_value_1);
+
+	// return the result.
+	return compare_result;
 }
 
 bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * __string_1)
@@ -365,7 +375,8 @@ bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * _
     std::size_t matching_char_set = 0;
 
     // NOTE: remove this later if not needed as it was for debugging
-    std::cout << __string_0 << ", " << __string_1  << std::endl;
+	if (this-> debug_logging)
+		std::cout << __string_0 << ", " << __string_1  << std::endl;
 
     /* if there not the same length then there not going to be the same so return false */
     if (len_of_string_0 != len_of_string_1) return false;
@@ -383,6 +394,7 @@ bool mdl::tagged_memory::compare_strings(char const * __string_0, char const * _
             break;
 
         /*  check the end of the string for no match
+		* NOTE: this is hear to speed things up
         */
         std::size_t o = (len_of_string_0 - i); 
         if (__string_0[o] != __string_1[o]) break;
@@ -489,49 +501,114 @@ char * mdl::tagged_memory::create_mem_tag(char const * __name, char const * __va
     return tmp;
 }
 
-char * mdl::tagged_memory::get_mem_value(char const * __name, bool & __error, uint_t __list_addr, bool __no_list)
+char * mdl::tagged_memory::get_mem_value(char const * __name, id_cache_t & __id_cache, bool & __error, uint_t __list_addr, bool __no_list)
 {
-    uint_t mem_addr = this-> get_mem_addr(__name, __error);
+    uint_t mem_addr = 0;
+	std::size_t mem_id = 0, mem_nme_len = 0;
 
-    if (__no_list == true) {
-        
-        std::size_t ltaddr_b = 0;
-        std::size_t ltaddr_e = 0;
-        bool fblist = false, fe_list = false;
+	char * mem_name = nullptr;
 
+	std::size_t ltaddr_b = 0;
+   	std::size_t ltaddr_e = 0;
+
+    bool fb_list = false, fe_list = false;
+
+	std::size_t list_pointer = 0;
+
+	if (__id_cache.caching && __id_cache.locked_list)
+		if (__id_cache.call_count != 0) goto skip_list_check;
+
+	std::cout << "-------------------------------------------------------------------------------oo" << std::endl;
+
+	/* check if there list addr tags 
+	*/
+	if (__no_list) {
         for (size_t i = 0; i != strlen(__name); i++ ) {
             if (__name[i] == LIST_LEN_BTAG) {
-                fblist = true;
+                fb_list = true;
                 ltaddr_b = i;
             }
 
             if (__name[i] == LIST_LEN_ETAG) {
-                if (i != ltaddr_b && fblist) {
+                if (i != ltaddr_b && fb_list) {
                     fe_list = true;
                     ltaddr_e = i;
                 }
             }
-        }
-
-        if (fblist && fe_list) {
-        
-            std::size_t list_pointer = 0;
-            char * name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
-          
-            std::cout << "name = " << name << std::endl; 
-
-            //this-> set_mem_value(name, __value, __error, list_pointer);
-
-            char * tmp = this-> get_mem_value(name, __error, list_pointer, false);            
-
-            std::free(name);
-           
-            return tmp;
-        }
-
+		}
     }
-    std::cout << "--------------@" << __no_list << std::endl; 
-    return this-> get_mem_value(mem_addr, __error, __list_addr, __no_list);
+
+	skip_list_check:
+
+	if (__id_cache.caching && __id_cache.locked_list) {
+		if (__id_cache.call_count == 0) {
+			__id_cache.ltaddr_b = ltaddr_b;
+        	__id_cache.ltaddr_e = ltaddr_e;
+		} else {
+			ltaddr_b = __id_cache.ltaddr_b;
+			ltaddr_e = __id_cache.ltaddr_e;
+			if (__no_list) { fb_list = true; fe_list = true; }
+		}
+	}
+
+	if (! __id_cache.caching) {
+
+		 if (fb_list && fe_list) {
+			mem_name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
+			mem_addr = this-> get_mem_addr(mem_name, __error);
+		}
+
+		mem_addr = this-> get_mem_addr(__name, __error);
+		mem_id = this-> find_mem_addr_it_pos(mem_addr, __error);
+    	mem_nme_len = this-> get_mem_name_len(mem_addr, __error);
+
+	} else {
+		if (__id_cache.call_count == 0) {
+			if (fb_list && fe_list) {
+				mem_name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
+				mem_addr = this-> get_mem_addr(mem_name, __error);
+			}
+
+			mem_id = this-> find_mem_addr_it_pos(mem_addr, __error);
+			mem_nme_len = this-> get_mem_name_len(mem_addr, __error);
+
+			__id_cache.mem_name = mem_name;
+			__id_cache.list_pointer = list_pointer;
+			__id_cache.mem_addr = mem_addr;
+			__id_cache.mem_id = mem_id;
+			__id_cache.mem_nme_len = mem_nme_len;
+
+			if (__id_cache.locked_list)
+				__id_cache.call_amount ++;
+		} else {
+			mem_name = __id_cache.mem_name;
+			list_pointer = __id_cache.list_pointer;
+			mem_addr = __id_cache.mem_addr;
+			mem_id = __id_cache.mem_id;
+			mem_nme_len = __id_cache.mem_nme_len;
+		}
+	}
+
+	if (__no_list && __id_cache.caching) {
+        if (__id_cache.call_count == __id_cache.call_amount) {
+            __id_cache.call_count = 0;
+			if (__id_cache.mem_name != nullptr)
+				std::free(__id_cache.mem_name);
+		} else
+            __id_cache.call_count ++;
+    }
+
+	//std::cout << mem_addr << ", " << ad << ", " << list_pointer << ", -------> " << __id_cache.call_count << " / " << __id_cache.call_amount << std::endl;
+
+	if (fb_list && fe_list) {
+		char * tmp = this-> get_mem_value(mem_name, __id_cache, __error, list_pointer, false);
+
+		if (!__id_cache.caching && !__id_cache.locked_list) std::free(mem_name);
+
+		return tmp;
+	}
+
+    return this-> get_mem_value(mem_addr, mem_id, mem_nme_len, __error, __list_addr, __no_list);
 }
 
 void mdl::tagged_memory::add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool & __error)
@@ -722,13 +799,10 @@ void mdl::tagged_memory::save_mem_stack_to_file(char const * __file_path, char c
     std::free(memory);
 }
 
+std::size_t mdl::tagged_memory::find_mem_addr_it_pos(uint_t __addr, bool & __error) {
+    ublas::vector<boost::array<uint_t, 2>>::iterator itor = this-> mem_addrs.begin();
 
-
-size_t mdl::tagged_memory::find_mem_addr_it_pos(uint_t __addr, bool & __error) {
-    ublas::vector<boost::array<uint_t, 2>>
-        ::iterator itor = this-> mem_addrs.begin();
-
-    size_t iterated_amount = 0;
+    std::size_t iterated_amount = 0;
     for (;itor != this-> mem_addrs.end(); ++itor) {
         if ((* itor)[0] == __addr) return iterated_amount;
         iterated_amount ++; 
@@ -738,11 +812,11 @@ size_t mdl::tagged_memory::find_mem_addr_it_pos(uint_t __addr, bool & __error) {
     return 0;
 }
 
-size_t mdl::tagged_memory::get_mem_name_len(uint_t __addr, bool & __error) {
+std::size_t mdl::tagged_memory::get_mem_name_len(uint_t __addr, bool & __error) {
     if (this-> mem_stack_get(__addr) != this-> seporator_tags[sp_t::__mem_begin]) {__error = true; return 0;}
  
-    size_t length_of_name = 0;
-    for(size_t i = (__addr +1);; i++) {
+    std::size_t length_of_name = 0;
+    for(std::size_t i = (__addr +1);; i++) {
         if (this-> mem_stack_get(i) == this-> seporator_tags[sp_t::__mem_middle]) break;
         length_of_name++; 
     }
@@ -753,6 +827,7 @@ size_t mdl::tagged_memory::get_mem_name_len(uint_t __addr, bool & __error) {
 bool mdl::tagged_memory::is_mem_addr_ok(uint_t __addr) {
     ublas::vector<boost::array<uint_t, 2>>
         ::iterator itor = this-> mem_addrs.begin();
+
     if (this-> debug_logging)
         printf("\x1B[36mchecking if memory address is ok.\x1B[0m\n");
 
@@ -760,12 +835,15 @@ bool mdl::tagged_memory::is_mem_addr_ok(uint_t __addr) {
         if ((* itor)[0] == __addr) {
             if (this-> debug_logging)
                 printf("\x1B[35msuccessfully found address %d\x1B[0m\n", __addr);
+
             return true;
 
         }
     }
+
     if (this-> debug_logging)
         printf("\x1B[35mfailed to find address %d\x1B[0m\n", __addr);
+
     return false;
 }
 
@@ -803,7 +881,6 @@ char * mdl::tagged_memory::get_mem_name(uint_t __addr, bool & __error)
    
     return __name; 
 }
-
 
 void mdl::tagged_memory::insert_into_mem_stack(char __mem, uint_t __addr, bool & __error)
 {
@@ -946,7 +1023,7 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
         ::iterator itor = this-> mem_addrs.begin();
 
     std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
-    //MARK
+   
     itor += ad;
 
     size_t len_of_name = this-> get_mem_name_len(mem_location, __error);
@@ -1031,8 +1108,9 @@ void mdl::tagged_memory::set_mem_name(char const * __current_name, char const * 
 
 char * mdl::tagged_memory::extract_list_addr(char const * __name, 
     std::size_t & __list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e) {
-    char * list_point = static_cast<char *>(malloc((__ltaddr_e - __ltaddr_b) * sizeof(char)));
 
+    char * list_point = static_cast<char *>(malloc((__ltaddr_e - __ltaddr_b) * sizeof(char)));
+	memset(list_point, '\0', (__ltaddr_e - __ltaddr_b)* sizeof(char));
     std::size_t _o = 0;
     for (size_t i = __ltaddr_b+1; i != __ltaddr_e; i++ ) {
         list_point[_o] = __name[i];
@@ -1204,11 +1282,12 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
         }
     }
     
-    if (__id_cache.caching)
+    if (__id_cache.caching) {
         if (__id_cache.call_count == __id_cache.call_amount)
             __id_cache.call_count = 0;
         else
             __id_cache.call_count += 1;    
+	}
 
     size_t before = (* itor)[1];
     (* itor)[1] = ((* itor)[0] + strlen(__value) + (length_of_name + 1));
@@ -1257,7 +1336,7 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     } 
 }
 
-char * mdl::tagged_memory::get_mem_value(uint_t __addr, bool & __error, uint_t __list_addr, bool __no_list)
+char * mdl::tagged_memory::get_mem_value(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, bool & __error, uint_t __list_addr, bool __no_list)
 {
     if (! this-> is_mem_addr_ok(__addr)) { __error = true; return '\0';}
 
@@ -1266,10 +1345,10 @@ char * mdl::tagged_memory::get_mem_value(uint_t __addr, bool & __error, uint_t _
     ublas::vector<boost::array<uint_t, 2>>
         ::iterator itor = this-> mem_addrs.begin();
 
-    std::size_t ad = find_mem_addr_it_pos(__addr, __error), ext = 0;
+    std::size_t ad = __ad, ext = 0;
     itor += ad;
     
-    std::size_t length_of_name = get_mem_name_len(__addr, __error);
+    std::size_t length_of_name = __mem_nm_len; //get_mem_name_len(__addr, __error);
 
     std::size_t length_of_value = 0;
     if (this-> mem_info[ad].is_list_type == false || __no_list) 

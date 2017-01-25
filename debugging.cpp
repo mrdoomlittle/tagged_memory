@@ -46,7 +46,7 @@ int main()
     * e.g. {example_0;}@@@@@@@@@@@{example_1;} 
     * @ = space
     */
-    example.dump_into_stack("{example_0;21299}    {example_1<2>;a,b}");
+    example.dump_into_stack("{example_0;101987}    {example_1<2>;a,b}");
     /* analyze the charset that was put into the stack */
     example.analyze_stack_memory(error);
     
@@ -79,20 +79,29 @@ int main()
     * allows you to access the data at a point in the stack
     * without needing to use a function.
     */
-    mdl::tagged_memory::mem_t * ex[2];
 
-    ex[0] = new mdl::tagged_memory::mem_t(0/*id*/, (& example), &error_info);
-    ex[1] = new mdl::tagged_memory::mem_t(1/*id*/, (& example), &error_info);
-  
+//    mdl::tagged_memory::mem_t * ex[2];
+
+//    ex[0] = new mdl::tagged_memory::mem_t(0/*id*/, (& example), &error_info);
+//    ex[1] = new mdl::tagged_memory::mem_t(1/*id*/, (& example), &error_info);
+ 
+//    mdl::tagged_memory::mem_t & ref = *ex[0];
+
+    // move example_0 to the right 2 spaces
+//    ref >> 2;
+    
+    // move example_0 to the left 2 spaces
+//    ref << 2;
+ 
     /* print the data to terminal
     */
-    for (std::size_t o = 0; o != 2; o ++) { 
+/*    for (std::size_t o = 0; o != 2; o ++) { 
         std::cout << "ID: " << o << ", ";
         for (std::size_t i = 0; i != ex[o]-> get_len(); i ++)
             std::cout << (* ex[o])[i];
 
         std::cout << "\n";
-    }
+    }*/
 
     /* NOTE: if you want illegal char's then use the '' string tags
     * note the end resault will output the val with the tags.
@@ -103,20 +112,21 @@ int main()
     /* if we are going to the the same mem value for e.g. 255 times
     * using this it will only check / find the name the the mem once.
     */
+	// NOTE: this is underdevelopment
     mdl::tagged_memory::id_cache_t id_cache;
     id_cache.caching = true;
-    id_cache.call_amount = 255;
+    id_cache.call_amount = 87;
 
     /* example set
     */
-    for (std::size_t i = 0; i != 256; i ++) {
+    for (std::size_t i = 0; i != 88; i ++) {
         std::string s = std::to_string(i);
         example.set_mem_value("example_0", s.c_str(), id_cache, error);
     }
 
     /* list example: mem_name<list_addr> */
-    char * tmp = example.get_mem_value("example_1<0>", error);
-    
+    char * tmp = example.get_mem_value("example_1", mdl::null_idc, error);
+
     // or example.get_mem_value("example_0", error, list_addr, false);
 
     printf("output: %s\n", tmp);
@@ -125,7 +135,7 @@ int main()
 
     std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - begin);
 
-    std::cout << time_span.count() << std::endl;    
+    std::cout << time_span.count() << std::endl;
 
     example.dump_stack_memory();
 
