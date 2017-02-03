@@ -1,6 +1,5 @@
 ## Code Example
 '''
-# include <tagged_memory.hpp>
 int main() {
 	bool is_error = false;
 
