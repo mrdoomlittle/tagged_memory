@@ -1,5 +1,6 @@
 ## Code Example
-'''
+```
+# include <tagged_memory.hpp>
 int main() {
 	bool is_error = false;
 
@@ -20,4 +21,5 @@ int main() {
 
 	// example.set_mem_value("/*name of mem*/", "/*value to set*/", mdl::null_idc, is_error);
 }
-'''
+```
+
