@@ -13,7 +13,7 @@ int main() {
 		/*print debug info to terminal*/false
 	);
 	
-	example.dump_into_stack("{ex_0;testing} {ex_0<2>;test,hello}");
+	example.dump_into_stack("{ex_0;testing} {ex_1<2>;test,hello}");
 
 	example.analyze_stack_memory(is_error);
 
