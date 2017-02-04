@@ -70,8 +70,8 @@ namespace mdl { class tagged_memory
     typedef struct {        
         bool fdirect_rw = false;
         bool fcontains_data = false;
-        char * mem_info_file = '\0';
-        char * mem_addrs_file = '\0';
+        char *mem_info_file = '\0';
+        char *mem_addrs_file = '\0';
     } extra_options_t;
 
     typedef struct {
@@ -99,7 +99,7 @@ namespace mdl { class tagged_memory
 
 		bool mem_addr_ok = false;
 
-		char * mem_name = nullptr;
+		char *mem_name = nullptr;
 		std::size_t list_pointer = 0;
 
 		std::size_t ltaddr_b, ltaddr_e;
@@ -110,7 +110,7 @@ namespace mdl { class tagged_memory
 
     // NOTE: to clean this up
     struct arc {
-        arc(FILE * __fs, char __typ) : fs(__fs), typ(__typ) {}
+        arc(FILE *__fs, char __typ) : fs(__fs), typ(__typ) {}
 
         void operator&(std::size_t __size) {
             if (typ == 's')
@@ -119,7 +119,7 @@ namespace mdl { class tagged_memory
                 this-> size = __size;
         }
 
-        void operator<<(void * __obj) {
+        void operator<<(void *__obj) {
             switch(typ) {
                 case 'r':
                     fread(__obj, size, 1, fs);
@@ -144,7 +144,7 @@ namespace mdl { class tagged_memory
     tagged_memory(uint_t __allocated_memory,
         std::initializer_list<boost::uint8_t> __seporator_tags, extra_options_t __extra_options, bool __debug_logging = true);
 
-	std::size_t find_free_memory(uint_t __mem_eaddr, uint_t & __end_point) {
+	std::size_t find_free_memory(uint_t __mem_eaddr, uint_t& __end_point) {
 		bool found_free_mem = false;
 		std::size_t free_mem_count = 0, o = __mem_eaddr + 2;
 		while(true) {
@@ -164,7 +164,7 @@ namespace mdl { class tagged_memory
 		return free_mem_count;
 	}
 
-	bool is_there_illegals(char const * __chars) {
+	bool is_there_illegals(char const *__chars) {
 		std::size_t char_count = strlen(__chars), o = 0;
 		while (o != char_count)
 		{
@@ -180,87 +180,91 @@ namespace mdl { class tagged_memory
 		}
 	}
 
-    char * dump_stack_memory(bool __return = false);
+	/* dump the memory stack to the terminal
+	*/
+    char *dump_stack_memory(bool __return = false);
 
-    char * combine_strings(char const * __string_0, char const * __string_1);
+	/* combine 2 strings into one string
+	*/
+    char *combine_strings(char const *__string_0, char const *__string_1);
 
-    void analyze_stack_memory(bool & __error);
+    void analyze_stack_memory(bool& __error);
 
-    void dump_into_stack(char const * __memory);
+    void dump_into_stack(char const *__memory);
 
     void dump_into_stack(ublas::vector<char> __memory);
 
-    uint_t get_mem_addr(char const * __name, bool & __error);
+    uint_t get_mem_addr(char const *__name, bool& __error);
 
-    std::size_t get_list_length(char const * __name, bool & __error);
+    std::size_t get_list_length(char const *__name, bool& __error);
 
-	void add_to_list(char const * __mem_name, std::size_t __amount, bool __append = true, std::size_t __list_id = 0);
+	void add_to_list(char const *__mem_name, std::size_t __amount, bool __append = true, std::size_t __list_id = 0);
 
-	void del_from_list(char const * __mem_name, std::size_t __list_id);
+	void del_from_list(char const *__mem_name, std::size_t __list_id);
 
     void save_mem_addrs();
-    void save_mem_addrs(char const * __file_path, char const * __file_name);
+    void save_mem_addrs(char const *__file_path, char const *__file_name);
 
     void load_mem_addrs();
-    void load_mem_addrs(char const * __file_path, char const * __file_name);
+    void load_mem_addrs(char const *__file_path, char const *__file_name);
 
     /* save the memory info to a file on the system
     */
     void save_mem_info();
-    void save_mem_info(char const * __file_path, char const * __file_name);
+    void save_mem_info(char const *__file_path, char const *__file_name);
 
     /* load the memory info from a file on the system
     */
     void load_mem_info();
-    void load_mem_info(char const * __file_path, char const * __file_name);
+    void load_mem_info(char const *__file_path, char const *__file_name);
 
     /* check the memory stack for a var thats matches a name
     */
-    bool does_mem_name_exist(char const * __mem_name, bool & __error);
+    bool does_mem_name_exist(char const *__mem_name, bool& __error);
 
-    bool compare_strings(char const * __string_0, char const * __string_1);
+    bool compare_strings(char const *__string_0, char const *__string_1);
 
     /* compare the value of 2 pices of memory
     */
-    bool compare_mem_values(char const * __mem_name_0, char const * __mem_name_1, bool & __error);
+    bool compare_mem_values(char const *__mem_name_0, char const *__mem_name_1, bool& __error);
 
-    char * create_mem_tag(char const * __name, char const * __value = "\0");
+    char *create_mem_tag(char const *__name, char const *__value = "\0");
  
-    void add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool & __error);
+    void add_mem_tag(char const * __name, char const * __value, size_t __null_space, bool& __error);
 
     /* set the name of the memory */
-    void set_mem_name(char const * __current_name, char const * __name, bool & __error);
+    void set_mem_name(char const *__current_name, char const *__name, bool& __error);
 
-    void set_mem_value(char const * __name, char const * __value, bool & __error, uint_t __list_addr);
+    void set_mem_value(char const *__name, char const *__value, bool& __error, uint_t __list_addr);
 
     /* set the value of the memory */
-    void set_mem_value(char const * __name, char const * __value, id_cache_t & __id_cache, bool & __error);
+    void set_mem_value(char const *__name, char const *__value, id_cache_t& __id_cache, bool& __error);
 
     /* load the memory stack from a file */
-    void load_mem_stack_from_file(char const * __file_path, char const * __file_name);
+    void load_mem_stack_from_file(char const *__file_path, char const *__file_name);
     /* save the memory stack to a file */
-    void save_mem_stack_to_file(char const * __file_path, char const * __file_name);
+    void save_mem_stack_to_file(char const *__file_path, char const *__file_name);
 
     /* get the name of the memory from a id/address */
-    char * get_mem_name(uint_t __addr, bool & __error);
+    char *get_mem_name(uint_t __addr, bool& __error);
 
-    char * get_mem_value(char const * __name, id_cache_t & __id_cache, bool & __error, uint_t __list_addr = 0, bool __no_list = true);
+    char *get_mem_value(char const *__name, id_cache_t& __id_cache, bool& __error, uint_t __list_addr = 0, bool __no_list = true);
 
     /* get the value of the memory from a id/address */
-    char * get_mem_value(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, bool & __error, uint_t __list_addr, bool __no_list = true);
+    char *get_mem_value(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, bool& __error, uint_t __list_addr, bool __no_list = true);
 
     /* find the address corresponding to the one passed thru and return the amount
     * that the iterator should be iterated
     */
-    std::size_t find_mem_addr_it_pos(uint_t __addr, bool & __error);
+    std::size_t find_mem_addr_it_pos(uint_t __addr, bool& __error);
 
-    std::size_t  get_mem_id(uint_t __addr, bool & __error) {
+    std::size_t  get_mem_id(uint_t __addr, bool& __error) {
         return this-> find_mem_addr_it_pos(__addr, __error);
     } 
 
     /* starting from the start get the length from { to :
     */
-    std::size_t get_mem_name_len(uint_t __addr, bool & __error);
+    std::size_t get_mem_name_len(uint_t __addr, bool& __error);
 
     /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
@@ -271,24 +275,24 @@ namespace mdl { class tagged_memory
     /* insert a char into the memory stack. the memory thats allready there will be shifted forward
     * this includes all the memory after the address
     */
-    void insert_into_mem_stack(char __mem, uint_t __addr, bool & __error);
+    void insert_into_mem_stack(char __mem, uint_t __addr, bool& __error);
 
     /* remove a pice of memory from the stack and then shift all the memory in the stack after the address
     * to fill in the free space.
     */
-    void uninsert_from_mem_stack(uint_t __addr, bool & __error);
-    
-    char * extract_list_addr(char const * __name, std::size_t & list_pointer,
-        std::size_t __ltaddr_b, std::size_t __ltaddr_e);
+    void uninsert_from_mem_stack(uint_t __addr, bool& __error);
 
-	void set_mem_list_len(char const * __mem_name, std::size_t __list_addr, bool & __is_error);
-	std::size_t get_mem_list_len(char const * __mem_name, bool __cached_ver, bool & __is_error);
+    char *extract_list_addr(char const *__name, std::size_t& list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e);
 
-	bool get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t * __list_addrs);
+	void set_mem_list_len(char const *__mem_name, std::size_t __list_addr, bool& __is_error);
+	std::size_t get_mem_list_len(char const *__mem_name, bool __cached_ver, bool& __is_error);
+
+	bool get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t *__list_addrs);
 
     typedef struct __mem_t {
-        __mem_t(std::size_t __element_id, tagged_memory * __this, error_info_t * __error_info) : 
-        element_id(__element_id), _this(__this), error_info(__error_info) { 
+        __mem_t(std::size_t __element_id, tagged_memory *__this, error_info_t *__error_info) :
+        	element_id(__element_id), _this(__this), error_info(__error_info)
+		{
             addr = __this-> mem_addrs[this-> element_id][0];
             this-> len = (__this-> mem_addrs[this-> element_id][1] - (_this-> get_mem_name_len(this-> addr, this-> error) + this-> addr)) - 1;
         }
@@ -306,48 +310,48 @@ namespace mdl { class tagged_memory
             _this-> mem_mov(element_id, __amount, MEM_MOVB);
         }
 
-        char * operator=(char const * __mem) {
+        char *operator=(char const *__mem) {
             return nullptr;
         }
 
         boost::uint8_t operator[](std::size_t __addr) {
             if (!this-> is_addr_in_range(__addr)) { this-> error_info-> fatal_error = true; }
-           
+
             uint_t addr = ((_this-> mem_addrs[this-> element_id][0] + 1) + __addr) + 
                 _this-> get_mem_name_len(this-> addr, this-> error_info-> fatal_error) + 1;
 
             return _this-> mem_stack_get(addr);
 
         }
-         
+
         std::size_t get_len(){
             return this-> len;
         }
 
-        error_info_t * error_info;
+        error_info_t *error_info;
         uint_t addr = 0;
         bool error = false;
         std::size_t len = 0;
         std::size_t const element_id = 0;
-        tagged_memory * _this = nullptr;
+        tagged_memory *_this = nullptr;
     } mem_t;
 
     void mem_alloc(std::size_t __malloc, bool __fill = false) {
         mem_info.resize(mem_info.size() + 1);
 
-        uint_t before = mem_addrs.size() - 1; 
+        uint_t before = mem_addrs.size() - 1;
         mem_addrs.resize(mem_addrs.size() + 1);
         uint_t after = mem_addrs.size() - 1;
 
         mem_addrs[after][0] = mem_addrs[before][1] + 2;
         mem_addrs[after][1] = mem_addrs[after][0] + __malloc;
 
-        if (__fill) 
+        if (__fill)
             for (std::size_t i = mem_addrs[after][0] ; i != mem_addrs[after][0] + __malloc; i ++)
                 this-> mem_stack_set(USED_MEMORY, i);
     }
 
-    void mem_free(char const * __mem_name, bool & __error, bool __clean = false) {
+    void mem_free(char const *__mem_name, bool& __error, bool __clean = false) {
         uint_t addr = this-> get_mem_addr(__mem_name, __error);
         uint_t pos = this-> find_mem_addr_it_pos(addr, __error);
 
@@ -361,9 +365,9 @@ namespace mdl { class tagged_memory
                 mem_stack_set(BLANK_MEMORY, i);
 
         for (std::size_t i = __mem_id ; i != mem_info.size() - 1; i ++) {
-            mem_info[i] = mem_info[i + 1]; 
+            mem_info[i] = mem_info[i + 1];
         }
-        
+
         mem_info.resize(mem_info.size() - 1);
 
         for (std::size_t i = __mem_id ; i != mem_addrs.size() - 1; i ++) {
@@ -371,13 +375,12 @@ namespace mdl { class tagged_memory
         }
 
         mem_addrs.resize(mem_addrs.size() - 1);
-        
     }
 
-    void mem_mov(char const * __mem_name, uint_t __mov_amount, boost::uint8_t __direction, bool & __error) {
+    void mem_mov(char const *__mem_name, uint_t __mov_amount, boost::uint8_t __direction, bool& __error) {
         uint_t addr = this-> get_mem_addr(__mem_name, __error);
         uint_t pos = this-> find_mem_addr_it_pos(addr, __error);
-        
+
         this-> mem_mov(pos, __mov_amount, __direction);
     }
 
@@ -407,7 +410,7 @@ namespace mdl { class tagged_memory
 
         for (std::size_t i = 0; i != mem_info[__mem_id].list_elength.size(); i ++) {
             switch (__direction) {
-                case MEM_MOVF: 
+                case MEM_MOVF:
                     mem_info[__mem_id].list_elength(i) += __mov_amount;
                 break;
                 case MEM_MOVB:
@@ -418,7 +421,7 @@ namespace mdl { class tagged_memory
 
         for (std::size_t i = 0; i != mem_info[__mem_id].list_points.size(); i ++) {
             switch (__direction) {
-                case MEM_MOVF: 
+                case MEM_MOVF:
                     mem_info[__mem_id].list_points(i) += __mov_amount;
                 break;
                 case MEM_MOVB:

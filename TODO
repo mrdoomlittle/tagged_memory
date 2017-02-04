@@ -21,3 +21,5 @@ sorry for my english :(
 	.add ceching to the setting and getting funcs e.g. allow the user
 	to say how many times this same mem name will be used so we only 
 	need to match the mem name once.
+
+	.clean
