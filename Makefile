@@ -3,7 +3,7 @@ all: src/tagged_memory.o
 	cp src/tagged_memory.hpp inc/tagged_memory.hpp
 
 src/tagged_memory.o: src/tagged_memory.cpp
-	g++ -c -std=c++11 -Wall -o src/tagged_memory.o src/tagged_memory.cpp
+	g++ -c -std=c++11 -I/home/daniel-robson/Projects/intlen/inc -L/home/daniel-robson/Projects/intlen/lib -Wall -DARC64 -o src/tagged_memory.o src/tagged_memory.cpp -lintlen
 
 clean:
 	rm -f bin/*

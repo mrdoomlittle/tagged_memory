@@ -44,14 +44,20 @@ constexpr char COMMENT_ETAG[2] = {'*', '/'};
 # define MEM_MOVF 0x0
 # define MEM_MOVB 0x1
 
+/* check for illegal chars
+*/
+# define ILLEGAL_CHARS false
+
 # include <string.h>
+# include <eint_t.hpp>
+# include <intlen.hpp>
 # include <fstream>
 # include <boost/array.hpp>
 namespace ublas = boost::numeric::ublas;
 
 //# include <eint_t.hpp>
 // note to remove this and uncomment above
-typedef boost::uint16_t uint_t;
+//typedef boost::uint16_t uint_t;
 
 namespace mdl { class tagged_memory
 {
@@ -138,6 +144,42 @@ namespace mdl { class tagged_memory
     tagged_memory(uint_t __allocated_memory,
         std::initializer_list<boost::uint8_t> __seporator_tags, extra_options_t __extra_options, bool __debug_logging = true);
 
+	std::size_t find_free_memory(uint_t __mem_eaddr, uint_t & __end_point) {
+		bool found_free_mem = false;
+		std::size_t free_mem_count = 0, o = __mem_eaddr + 2;
+		while(true) {
+			printf("%c --- \n", this-> mem_stack_get(o));
+			if (this-> mem_stack_get(o) != BLANK_MEMORY) {
+				__end_point = o;
+				break;
+			}
+
+			if (this-> mem_stack_get(o) == BLANK_MEMORY) {
+				free_mem_count ++;
+			}
+			o ++;
+		}
+		__end_point = o;
+
+		return free_mem_count;
+	}
+
+	bool is_there_illegals(char const * __chars) {
+		std::size_t char_count = strlen(__chars), o = 0;
+		while (o != char_count)
+		{
+			for (std::size_t i = 0; i != 3; i ++) {
+				if (__chars[o] == this-> seporator_tags[i]) {
+					return true;
+				}
+			}
+
+			if (__chars[o] == MEM_LIST_TAG) return true;
+
+			o ++;
+		}
+	}
+
     char * dump_stack_memory(bool __return = false);
 
     char * combine_strings(char const * __string_0, char const * __string_1);
@@ -151,6 +193,10 @@ namespace mdl { class tagged_memory
     uint_t get_mem_addr(char const * __name, bool & __error);
 
     std::size_t get_list_length(char const * __name, bool & __error);
+
+	void add_to_list(char const * __mem_name, std::size_t __amount, bool __append = true, std::size_t __list_id = 0);
+
+	void del_from_list(char const * __mem_name, std::size_t __list_id);
 
     void save_mem_addrs();
     void save_mem_addrs(char const * __file_path, char const * __file_name);
@@ -228,12 +274,17 @@ namespace mdl { class tagged_memory
     void insert_into_mem_stack(char __mem, uint_t __addr, bool & __error);
 
     /* remove a pice of memory from the stack and then shift all the memory in the stack after the address
-    * to fill in the free space 
+    * to fill in the free space.
     */
     void uninsert_from_mem_stack(uint_t __addr, bool & __error);
     
     char * extract_list_addr(char const * __name, std::size_t & list_pointer,
         std::size_t __ltaddr_b, std::size_t __ltaddr_e);
+
+	void set_mem_list_len(char const * __mem_name, std::size_t __list_addr, bool & __is_error);
+	std::size_t get_mem_list_len(char const * __mem_name, bool __cached_ver, bool & __is_error);
+
+	bool get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t * __list_addrs);
 
     typedef struct __mem_t {
         __mem_t(std::size_t __element_id, tagged_memory * __this, error_info_t * __error_info) : 
@@ -458,8 +509,8 @@ namespace mdl { class tagged_memory
     ublas::vector<boost::uint8_t> mem_stack;
     
     public:
-    void mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr);
-    boost::uint8_t mem_stack_get(std::size_t __mem_addr);
+    void mem_stack_set(boost::uint8_t __mem, uint_t __mem_addr);
+    boost::uint8_t mem_stack_get(uint_t __mem_addr);
 } ;
     static tagged_memory::id_cache_t null_idc;
     typedef tagged_memory tmem_t;

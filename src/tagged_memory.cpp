@@ -37,7 +37,255 @@ mdl::tagged_memory::tagged_memory(uint_t __allocated_memory,
     this-> extra_options = __extra_options;
 }
 
-void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_addr) {
+bool mdl::tagged_memory::get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t * __list_addrs) {
+	if (! this-> mem_info[__mem_id].is_list_type) return false;
+
+	bool found_begin_tag = false, is_error = false;
+	uint_t begin_addr, end_addr;
+
+	std::size_t len_of_name = this-> get_mem_name_len(__mem_addr, is_error);
+
+	std::size_t o = __mem_addr + 1;
+	while(o != (__mem_addr + len_of_name) + 1) {
+		printf("list addr char: %c\n", this-> mem_stack_get(o));
+		if (this-> mem_stack_get(o) == LIST_LEN_BTAG && !found_begin_tag) {
+			begin_addr = o;
+			printf("begin: %d\n", o);
+			found_begin_tag = true;
+		}
+
+		if (this-> mem_stack_get(o) == LIST_LEN_ETAG && o != begin_addr && found_begin_tag) {
+			end_addr = o;
+			__list_addrs[0] = begin_addr;
+			__list_addrs[1] = end_addr;
+			return true;
+		}
+
+		o ++;
+	}
+
+	return false;
+}
+
+
+
+void mdl::tagged_memory::set_mem_list_len(char const * __mem_name, std::size_t __list_len, bool & __is_error) {
+	bool is_error = false;
+    uint_t mem_addr = this-> get_mem_addr(__mem_name, is_error);
+    std::size_t mem_id = this-> get_mem_id(mem_addr, is_error);
+
+	std::ostringstream str_stream;
+	str_stream << __list_len;
+
+	char const * list_len = str_stream.str().c_str();
+
+	if (this-> mem_info[mem_id].len_of_list == __list_len) {
+		__is_error = true;
+		return;
+	}
+
+	std::size_t l1 = intlen(uint_t(this-> mem_info[mem_id].len_of_list)), l2 = intlen(uint_t(__list_len));
+
+	std::size_t list_addrs[2] = {0};
+    if (!this-> get_mem_list_addrs(mem_addr, mem_id, list_addrs)) {
+        __is_error = true;
+        return;
+    }
+
+	if (this-> mem_info[mem_id].len_of_list > __list_len) {
+		std::size_t amount_to_shrink = (this-> mem_info[mem_id].len_of_list - __list_len);
+		this-> mem_info[mem_id].len_of_list -= amount_to_shrink;
+	}
+	else if (this-> mem_info[mem_id].len_of_list < __list_len) {
+		std::size_t amount_to_grow = (__list_len - this-> mem_info[mem_id].len_of_list);
+		this-> mem_info[mem_id].len_of_list += amount_to_grow;
+	}
+
+	std::size_t o = list_addrs[0] + 1, i = 0, change = 0, sv = 0;
+
+	uint_t free_mem_ending = 0;
+	std::size_t free_memory = this-> find_free_memory(this-> mem_addrs[mem_id][1], free_mem_ending);
+	free_mem_ending --;
+
+	printf("%d free memory. id %d, addr: %d, ex: %d\n", free_memory, mem_id, mem_addr, list_addrs[0]);
+	bool alloc_space = false, moved_stack = false, smove_amount = 0;
+	if (l1 == l2) {
+    	while(o != list_addrs[1]) {
+        	this-> mem_stack_set(list_len[i], o);
+       		i ++;
+			o ++;
+		}
+	}
+	else if (l1 < l2) {
+		change = (l2 - l1);
+		if (RESIZE_TO_FIT) {
+			while (o != list_addrs[1] + change) {
+				if (this-> mem_stack_get(o) != LIST_LEN_ETAG) {
+					this-> mem_stack_set(list_len[i], o);
+					sv = o + 1;
+				} else {
+					this-> insert_into_mem_stack(list_len[i], sv, __is_error);
+					if (!moved_stack) moved_stack = true;
+					smove_amount ++;
+				}
+
+				o ++;
+				i ++;
+			}
+		} else {
+			printf("working %d\n", change);
+			while(o != list_addrs[1] + change) {
+
+				if (this-> mem_stack_get(o) != LIST_LEN_ETAG) {
+					this-> mem_stack_set(list_len[i], o);
+				} else {
+					if (!alloc_space) {
+						if (free_memory < l2) {
+							while (free_memory != l2-1) {
+								this-> insert_into_mem_stack(BLANK_MEMORY, this-> mem_addrs[mem_id][1] + 2, __is_error);
+								free_memory ++;
+								if (!moved_stack) moved_stack = true;
+                    			smove_amount ++;
+							}
+						}
+
+						for (std::size_t l = (this-> mem_addrs[mem_id][1] + 1); l != list_addrs[1] -1; l --) {
+							printf("--: %c addr: %d to addr %d.\n", this-> mem_stack_get(l), l, l + change);
+							this-> mem_stack_set(this-> mem_stack_get(l), (l + change));
+							this-> mem_stack_set(BLANK_MEMORY, l);
+						}
+
+						alloc_space = true;
+					}
+
+					this-> mem_stack_set(list_len[i], o);
+				}
+
+				i ++;
+            	o ++;
+			}
+		}
+
+		std::cout << "change: " << change << std::endl; 
+		for (std::size_t c = 0; c != this-> mem_info[mem_id].list_points.size(); c ++) {
+			this-> mem_info[mem_id].list_points[c] += change;
+		}
+
+		this-> mem_addrs[mem_id][1] += change;
+
+		if (moved_stack) {
+			for (std::size_t a = mem_id + 1; a != this-> mem_info.size(); a ++) {
+				for (std::size_t c = 0; c != this-> mem_info[a].list_points.size(); c ++) {
+					this-> mem_info[a].list_points[c] += smove_amount;
+				}
+			}
+
+			for (std::size_t a = mem_id + 1; a != this-> mem_addrs.size(); a ++) {
+				this-> mem_addrs[a][0] += smove_amount;
+				this-> mem_addrs[a][1] += smove_amount;
+			}
+		}
+	}
+	else if (l1 > l2) {
+		change = (l1 - l2);
+		if (RESIZE_TO_FIT) {
+			while(o != list_addrs[1]) {
+				if (i == change) {
+					for (std::size_t l = 0; l != l2; l ++)
+						this-> mem_stack_set(list_len[l], (list_addrs[0] + 1) + l);
+
+					break;
+				}
+
+				this-> uninsert_from_mem_stack(o, __is_error);
+				if (!moved_stack) moved_stack = true;
+                smove_amount ++;
+				i ++;
+				o ++;
+			}
+
+			while(this-> mem_stack_get(o-1) != LIST_LEN_ETAG) {
+				this-> uninsert_from_mem_stack(o-1, __is_error);
+				if (!moved_stack) moved_stack = true;
+                smove_amount ++;
+			}
+
+		} else {
+			while(o != list_addrs[1] - change) {
+				this-> mem_stack_set(list_len[i], o);
+				i ++;
+                o ++;
+			}
+
+			while (this-> mem_stack_get(o) != LIST_LEN_ETAG) {
+				this-> mem_stack_set(BLANK_MEMORY, o);
+				o ++;
+			}
+		}
+
+		if (RESIZE_TO_FIT) {
+
+			for (std::size_t c = mem_id + 1; c != this-> mem_info[mem_id].list_points.size(); c ++) {
+    	        this-> mem_info[mem_id].list_points[c] -= change;
+	       	}
+
+			if (moved_stack) {
+				for (std::size_t a = mem_id + 1; a != this-> mem_info.size(); a ++) {
+        	        for (std::size_t c = 0; c != this-> mem_info[a].list_points.size(); c ++) {
+            	        this-> mem_info[a].list_points[c] -= smove_amount;
+	               	}
+	            }
+
+	            for (std::size_t a = mem_id + 1; a != this-> mem_addrs.size(); a ++) {
+    	            this-> mem_addrs[a][0] -= smove_amount;
+        	        this-> mem_addrs[a][1] -= smove_amount;
+     	       	}
+			}
+		}
+	}
+}
+
+std::size_t mdl::tagged_memory::get_mem_list_len(char const * __mem_name, bool __cached_ver, bool & __is_error) {
+    uint_t mem_addr = this-> get_mem_addr(__mem_name, __is_error);
+    std::size_t mem_id = this-> get_mem_id(mem_id, __is_error);
+
+	if (__cached_ver) return this-> mem_info[mem_id].len_of_list;
+
+	std::size_t list_addrs[2] = {0};
+
+	if (!this-> get_mem_list_addrs(mem_addr, mem_id, list_addrs)) {
+		__is_error = true;
+		return 0;
+	}
+
+	std::size_t len_buff_size = ((list_addrs[1] - 1) - list_addrs[0]) + 1;
+
+	char * len_buff = static_cast<char *>(malloc(len_buff_size * sizeof(char)));
+	memset(len_buff, '\0', len_buff_size);
+
+	std::size_t o = list_addrs[0] + 1, i = 0;
+	while(o != list_addrs[1]) {
+		len_buff[i] = this-> mem_stack_get(o);
+		i ++;
+		o ++;
+	}
+
+	std::size_t list_len = atoi(len_buff);
+	std::free(len_buff);
+
+	return list_len;
+}
+
+
+void mdl::tagged_memory::add_to_list(char const * __mem_name, std::size_t __amount, bool __append, std::size_t __list_id) {
+
+}
+
+void mdl::tagged_memory::del_from_list(char const * __mem_name, std::size_t __list_id) {
+
+}
+
+void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, uint_t __mem_addr) {
     if (extra_options.fdirect_rw) {
         FILE * ofile = fopen(DEF_MSTACK_FILE, "r+b");
 
@@ -46,16 +294,16 @@ void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, std::size_t __mem_a
         fwrite(&__mem, sizeof(boost::uint8_t), 1, ofile);
 
         rewind(ofile);
-        
+
         fclose(ofile);
     } else
         this-> mem_stack(__mem_addr) = __mem;
 }
 
-boost::uint8_t mdl::tagged_memory::mem_stack_get(std::size_t __mem_addr) {
+boost::uint8_t mdl::tagged_memory::mem_stack_get(uint_t __mem_addr) {
     if (extra_options.fdirect_rw) {
         FILE * ifile = fopen(DEF_MSTACK_FILE, "rb");
-        
+
         fseek(ifile, (__mem_addr * sizeof(boost::uint8_t)), SEEK_SET);
 
         static char temp = '\0';
@@ -252,6 +500,11 @@ void mdl::tagged_memory::set_mem_value(char const * __name, char const * __value
     /* how many itorator ++ is there needed for that pice of memory
     */
     std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+
+	if (__list_addr < 0 || __list_addr >= this-> mem_info[ad].len_of_list) {
+		__error = true;	
+		return;
+	}
 
     /* what is the length of the list
     */
@@ -503,6 +756,13 @@ char * mdl::tagged_memory::create_mem_tag(char const * __name, char const * __va
 
 char * mdl::tagged_memory::get_mem_value(char const * __name, id_cache_t & __id_cache, bool & __error, uint_t __list_addr, bool __no_list)
 {
+	if (ILLEGAL_CHARS) {
+		if (this-> is_there_illegals(__name)) {
+			__error = true;
+			return nullptr;
+		}
+	}
+
     uint_t mem_addr = 0;
 	std::size_t mem_id = 0, mem_nme_len = 0;
 
@@ -586,6 +846,12 @@ char * mdl::tagged_memory::get_mem_value(char const * __name, id_cache_t & __id_
 			mem_addr = __id_cache.mem_addr;
 			mem_id = __id_cache.mem_id;
 			mem_nme_len = __id_cache.mem_nme_len;
+		}
+	}
+	if (!__no_list) {
+		if (__list_addr < 0 || __list_addr >= this-> mem_info[mem_id].len_of_list) {
+			__error = true;
+			return nullptr;
 		}
 	}
 
@@ -918,7 +1184,7 @@ void mdl::tagged_memory::uninsert_from_mem_stack(uint_t __addr, bool & __error)
 }
 
 
-uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
+mdl::uint_t mdl::tagged_memory::get_mem_addr(char const * __name, bool & __error)
 {
     size_t length_of_name = strlen(__name);
   

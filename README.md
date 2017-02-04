@@ -20,6 +20,8 @@ int main() {
 	// example.get_mem_value("/*name of mem*/", mdl::null_idc, is_error); <- returns char *
 
 	// example.set_mem_value("/*name of mem*/", "/*value to set*/", mdl::null_idc, is_error);
+
+	// example.free_mem("/*name of mem*/, is_error, true/*set mem to blank*/");
 }
 ```
 
