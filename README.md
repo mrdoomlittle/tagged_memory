@@ -1,7 +1,14 @@
+# Building & Compiling
+###### NOTE: The Boost Library is required.
+```
+git submodule init
+git submodule update
+make
+// to compile the c++ code below.
+sh compile.sh main.cpp main.exec
+```
 # Code Example
 ```
-// how to compile: sh compile.sh main.cpp main.exec
-
 # include <tagged_memory.hpp>
 # include <cstdio>
 int main() {
