@@ -1,7 +1,6 @@
 # Code Example
 ```
-// compile: g++ -std=c++11 -Iinc -Llib -DARC64 -o main main.cpp -ltagged_memory -lintlen
-// must install intlen url: http://github.com/mrdoomlittle/intlen/
+// how to compile: sh compile.sh main.cpp main.exec
 
 # include <tagged_memory.hpp>
 # include <cstdio>
