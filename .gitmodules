@@ -1,0 +1,12 @@
+[submodule "intlen"]
+	path = intlen
+	url = git://github.com/mrdoomlittle/intlen.git
+[submodule "getdigit"]
+	path = getdigit
+	url = git://github.com/mrdoomlittle/getdigit.git
+[submodule "to_string"]
+	path = to_string
+	url = git://github.com/mrdoomlittle/to_string.git
+[submodule "eint_t"]
+	path = eint_t
+	url = git://github.com/mrdoomlittle/eint_t
