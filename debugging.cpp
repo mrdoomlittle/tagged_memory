@@ -45,18 +45,31 @@ int main()
 	/* NOTE when using to add free space that can be used by the mem else
 	* it will need to shift every element in the vector forward.
 	*/
-    example.dump_into_stack("{example_0<333>;101987,21299}{example_1<2>;a,b}");
+    example.dump_into_stack("{example_0<2>;,21299}        {example_1<2>;a,b}");
 
 
 	// NOTE: add option to disable the reset part.
     /* analyze the charset that was put into the stack */
     example.analyze_stack_memory(error);
 
-	example.set_mem_list_len("example_0", 20, error);
+	//example.set_mem_list_len("example_0", 20, error);
+	//example.mem_stack_uninsert(10);
 
-	char * tt = example.get_mem_value("example_1<2>", mdl::null_idc, error);
-	std::cout << "-----------------------------------> " << "" << " / " << error << "\n" << std::endl;
-	std::free(tt);
+	example.add_to_list("example_0", 2, error);
+	example.set_mem_value("example_0<0>", "101987", mdl::null_idc, error);
+	//example.set_mem_value("example_0<1>", "XXXXXX", mdl::null_idc, error);
+	example.set_mem_value("example_0<2>", "XXXXXX", mdl::null_idc, error);
+	example.set_mem_value("example_0<3>", "XXXXXX", mdl::null_idc, error);
+	//char * tt = example.get_mem_value("example_0<1>", mdl::null_idc, error);
+    //std::cout << "-----------------------------------> " << tt << " / " << error << "\n" << std::endl;
+    //std::free(tt);
+
+	example.dump_stack_memory();
+
+return 0;
+	//char * tt = example.get_mem_value("example_1<2>", mdl::null_idc, error);
+	//std::cout << "-----------------------------------> " << "" << " / " << error << "\n" << std::endl;
+	//std::free(tt);
 
 	example.mem_free("example_0", error, true);
 	example.dump_stack_memory();

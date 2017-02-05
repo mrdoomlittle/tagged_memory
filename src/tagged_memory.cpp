@@ -67,28 +67,25 @@ bool mdl::tagged_memory::get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem
 	return false;
 }
 
-
-
 void mdl::tagged_memory::set_mem_list_len(char const *__mem_name, std::size_t __list_len, bool& __is_error) {
 	bool is_error = false;
-    uint_t mem_addr = this-> get_mem_addr(__mem_name, is_error);
-    std::size_t mem_id = this-> get_mem_id(mem_addr, is_error);
+    uint_t mem_addr = this-> get_mem_addr(__mem_name, __is_error);
+    std::size_t mem_id = this-> get_mem_id(mem_addr, __is_error);
 
-	std::ostringstream str_stream;
-	str_stream << __list_len;
-
-	char const * list_len = str_stream.str().c_str();
+	char * list_len = to_string(__list_len);
 
 	if (this-> mem_info[mem_id].len_of_list == __list_len) {
 		__is_error = true;
+		std::free(list_len);
 		return;
 	}
 
-	std::size_t l1 = intlen(uint_t(this-> mem_info[mem_id].len_of_list)), l2 = intlen(uint_t(__list_len));
+	std::size_t l1 = intlen(this-> mem_info[mem_id].len_of_list), l2 = intlen(__list_len);
 
 	std::size_t list_addrs[2] = {0};
     if (!this-> get_mem_list_addrs(mem_addr, mem_id, list_addrs)) {
         __is_error = true;
+		std::free(list_len);
         return;
     }
 
@@ -110,11 +107,15 @@ void mdl::tagged_memory::set_mem_list_len(char const *__mem_name, std::size_t __
 	printf("%d free memory. id %d, addr: %d, ex: %d\n", free_memory, mem_id, mem_addr, list_addrs[0]);
 	bool alloc_space = false, moved_stack = false, smove_amount = 0;
 	if (l1 == l2) {
+		printf("same size in digits\n");
     	while(o != list_addrs[1]) {
         	this-> mem_stack_set(list_len[i], o);
        		i ++;
 			o ++;
 		}
+		std::free(list_len);
+		//std::free((char *)list_len);
+		return;
 	}
 	else if (l1 < l2) {
 		change = (l2 - l1);
@@ -243,6 +244,8 @@ void mdl::tagged_memory::set_mem_list_len(char const *__mem_name, std::size_t __
 			}
 		}
 	}
+
+	std::free(list_len);
 }
 
 std::size_t mdl::tagged_memory::get_mem_list_len(char const *__mem_name, bool __cached_ver, bool& __is_error) {
@@ -276,13 +279,157 @@ std::size_t mdl::tagged_memory::get_mem_list_len(char const *__mem_name, bool __
 	return list_len;
 }
 
+void mdl::tagged_memory::get_addr_spoints(uint_t __addr, std::size_t& __mem_id, std::size_t& __list_id, bool& __is_error) {
+	std::size_t mem_id = 0, list_id = 0;
+	bool found_mem_id = false;
 
-void mdl::tagged_memory::add_to_list(char const *__mem_name, std::size_t __amount, bool __append, std::size_t __list_id) {
+    for (std::size_t o = 0; o != this-> mem_addrs.size(); o ++) {
+        if ((__addr >= this-> mem_addrs[o][0] && __addr <= (this-> mem_addrs[o][1] + 1)) && !found_mem_id) {
+            mem_id = o;
+            found_mem_id = true;
+        }
 
+        if (this-> mem_info[o].is_list_type) {
+        if (found_mem_id) {
+            for (std::size_t i = this-> mem_info[o].list_points.size() - 1; i != 0; i --) {
+				printf("%d >= %d\n", __addr, this-> mem_info[o].list_points[i]);
+                if (__addr >= this-> mem_info[o].list_points[i]) {
+					printf("found list id - %d\n", i);
+                    list_id = i;
+                    break;
+                }
+            }
+            break;
+        }
+        } else {
+            if (found_mem_id) break;
+        }
+    }
+
+	if (!found_mem_id) {
+		__is_error = true;
+	}
+
+	__mem_id = mem_id;
+	__list_id = list_id;
 }
 
-void mdl::tagged_memory::del_from_list(char const *__mem_name, std::size_t __list_id) {
+void mdl::tagged_memory::mem_stack_insert(char __mem, uint_t __addr) {
+	std::size_t mem_id, list_id;
 
+	bool is_error = false, hard_insert = false;
+	this-> get_addr_spoints(__addr, mem_id, list_id, is_error);
+
+	printf("mem_id: %d, list_id: %d, mem_addr: %d\n", mem_id, list_id, __addr);
+
+	if (is_error) return;
+
+	if (RESIZE_TO_FIT) {
+		// need to work on this
+	} else {
+		if (this-> mem_stack_get(this-> mem_addrs[mem_id][1]+2) == BLANK_MEMORY) {
+			std::size_t o = this-> mem_addrs[mem_id][1] + 1;
+			while(o != __addr-1) {
+				printf("%c \n", this-> mem_stack_get(o));
+				this-> mem_stack_set(this-> mem_stack_get(o), o + 1);
+				this-> mem_stack_set(BLANK_MEMORY, o);
+				o --;
+			}
+		} else {
+			if (!hard_insert) hard_insert = true;
+			this-> insert_into_mem_stack(__mem, __addr, is_error);
+		}
+	}
+
+	if (this-> mem_info[mem_id].list_points[list_id] == __addr)
+		for (std::size_t o = list_id; o != this-> mem_info[mem_id].list_points.size(); o ++)
+			this-> mem_info[mem_id].list_points[o] ++;
+	else
+		for (std::size_t o = list_id + 1; o != this-> mem_info[mem_id].list_points.size(); o ++)
+			this-> mem_info[mem_id].list_points[o] ++;
+
+	if (this-> mem_addrs[mem_id][0] == __addr) {
+		this-> mem_addrs[mem_id][0] ++;
+	} else {
+        this-> mem_addrs[mem_id][1] ++;
+	}
+
+	if (hard_insert) {
+		for (std::size_t l = mem_id + 1; l != this-> mem_info.size(); l ++) {
+			this-> mem_addrs[l][0] ++;
+			this-> mem_addrs[l][1] ++;
+			for (std::size_t o = 0; o != this-> mem_info[l].list_points.size(); o ++)
+				this-> mem_info[l].list_points[o] ++;
+		}
+	}
+
+	if (!hard_insert) this-> mem_stack_set(__mem, __addr);
+}
+
+void mdl::tagged_memory::mem_stack_uninsert(uint_t __addr) {
+	std::size_t mem_id, list_id;
+
+    bool is_error = false, hard_uninsert = false;
+    this-> get_addr_spoints(__addr, mem_id, list_id, is_error);
+
+    if (is_error) return;
+
+	if (RESIZE_TO_FIT) {
+        // need to work on this
+    } else {
+		std::size_t o = __addr;
+		while(o != this-> mem_addrs[mem_id][1] + 1) {
+			this-> mem_stack_set(this-> mem_stack_get(o + 1), o);
+			this-> mem_stack_set(BLANK_MEMORY, o + 1);
+			o ++;
+		}
+    }
+
+	for (std::size_t o = list_id; o != this-> mem_info[mem_id].list_points.size(); o ++)
+        this-> mem_info[mem_id].list_points[o] --;
+
+    if (this-> mem_addrs[mem_id][0] == __addr) {
+        this-> mem_addrs[mem_id][0] --;
+    } else {
+        this-> mem_addrs[mem_id][1] --;
+    }
+}
+
+void mdl::tagged_memory::add_to_list(char const *__mem_name, std::size_t __amount, bool& __is_error) { 
+	uint_t mem_addr = this-> get_mem_addr(__mem_name, __is_error);
+    std::size_t mem_id = this-> get_mem_id(mem_id, __is_error);
+
+	if (!this-> mem_info[mem_id].is_list_type) return;
+
+	this-> set_mem_list_len(__mem_name, this-> mem_info[mem_id].len_of_list + __amount, __is_error);
+
+	uint_t to_insert_addr = this-> mem_addrs[mem_id][1] + 1;
+
+	for (std::size_t o = 0; o != __amount; o ++)
+		this-> mem_stack_insert(MEM_LIST_TAG, to_insert_addr);
+
+	std::size_t pre_lsize = this-> mem_info[mem_id].list_points.size();
+
+    this-> mem_info[mem_id].list_points.resize(
+        this-> mem_info[mem_id].list_points.size() + __amount);
+
+    this-> mem_info[mem_id].list_elength.resize(
+        this-> mem_info[mem_id].list_elength.size() + __amount);
+
+	std::size_t l = pre_lsize;
+	for (std::size_t o = 0; o != __amount; o ++, l ++) {
+		this-> mem_info[mem_id].list_points[l] = to_insert_addr + o;
+        this-> mem_info[mem_id].list_elength[l] = 0;
+	}
+}
+
+void mdl::tagged_memory::del_from_list(char const *__mem_name, std::size_t __list_id, bool& __is_error) {
+	uint_t mem_addr = this-> get_mem_addr(__mem_name, __is_error);
+    std::size_t mem_id = this-> get_mem_id(mem_id, __is_error);
+
+	if (!this-> mem_info[mem_id].is_list_type) return;
+
+	this-> set_mem_list_len(__mem_name, this-> mem_info[mem_id].len_of_list - 1, __is_error);
 }
 
 void mdl::tagged_memory::mem_stack_set(boost::uint8_t __mem, uint_t __mem_addr) {
@@ -528,7 +675,7 @@ void mdl::tagged_memory::set_mem_value(char const *__name, char const *__value, 
             this-> mem_stack_set(__value[o], i);
             o ++;
         }
-        
+
         std::free(tmp);
         return;
     }
@@ -1368,7 +1515,7 @@ char * mdl::tagged_memory::extract_list_addr(char const * __name,
     std::size_t& __list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e) {
 
     char *list_point = static_cast<char *>(malloc((__ltaddr_e - __ltaddr_b) * sizeof(char)));
-	memset(list_point, '\0', (__ltaddr_e - __ltaddr_b)* sizeof(char));
+	memset(list_point, '\0', (__ltaddr_e - __ltaddr_b) * sizeof(char));
     std::size_t _o = 0;
     for (size_t i = __ltaddr_b+1; i != __ltaddr_e; i++ ) {
         list_point[_o] = __name[i];

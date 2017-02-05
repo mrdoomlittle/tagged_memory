@@ -51,9 +51,12 @@ constexpr char COMMENT_ETAG[2] = {'*', '/'};
 # include <string.h>
 # include <eint_t.hpp>
 # include <intlen.hpp>
+# include <to_string.hpp>
 # include <fstream>
 # include <boost/array.hpp>
 namespace ublas = boost::numeric::ublas;
+
+// NOTE: dont use stringstream. use to_string(int)
 
 //# include <eint_t.hpp>
 // note to remove this and uncomment above
@@ -180,6 +183,14 @@ namespace mdl { class tagged_memory
 		}
 	}
 
+//	typedef struct addr_info {
+
+//	} addr_info_t;
+
+//	void get_addr_info(uint_t __addr, addr_info_t& __addr_info, bool& __is_error);
+
+	void get_addr_spoints(uint_t __addr, std::size_t& __mem_id, std::size_t& __list_id, bool& __is_error);
+
 	/* dump the memory stack to the terminal
 	*/
     char *dump_stack_memory(bool __return = false);
@@ -198,9 +209,9 @@ namespace mdl { class tagged_memory
 
     std::size_t get_list_length(char const *__name, bool& __error);
 
-	void add_to_list(char const *__mem_name, std::size_t __amount, bool __append = true, std::size_t __list_id = 0);
+	void add_to_list(char const *__mem_name, std::size_t __amount, bool& __is_error);
 
-	void del_from_list(char const *__mem_name, std::size_t __list_id);
+	void del_from_list(char const *__mem_name, std::size_t __list_id, bool& __is_error);
 
     void save_mem_addrs();
     void save_mem_addrs(char const *__file_path, char const *__file_name);
@@ -284,7 +295,11 @@ namespace mdl { class tagged_memory
 
     char *extract_list_addr(char const *__name, std::size_t& list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e);
 
-	void set_mem_list_len(char const *__mem_name, std::size_t __list_addr, bool& __is_error);
+	void mem_stack_insert(char __mem, uint_t __addr);
+	void mem_stack_uninsert(uint_t __addr);
+
+	void set_mem_list_len(char const *__mem_name, std::size_t __list_len, bool& __is_error);
+
 	std::size_t get_mem_list_len(char const *__mem_name, bool __cached_ver, bool& __is_error);
 
 	bool get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t *__list_addrs);

@@ -3,7 +3,7 @@ all: src/tagged_memory.o
 	cp src/tagged_memory.hpp inc/tagged_memory.hpp
 
 src/tagged_memory.o: src/tagged_memory.cpp
-	g++ -c -std=c++11 -Wall -DARC64 -o src/tagged_memory.o src/tagged_memory.cpp -lintlen
+	g++ -c -std=c++11 -Wall -DARC64 -o src/tagged_memory.o src/tagged_memory.cpp
 
 install:
 	cp inc/tagged_memory.hpp /usr/local/include
