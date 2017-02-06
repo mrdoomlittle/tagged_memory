@@ -167,7 +167,8 @@ void mdl::tagged_memory::set_mem_list_len(echar_t const *__mem_name, std::size_t
 			}
 		}
 
-		std::cout << "change: " << change << std::endl;
+		if (this-> debug_logging)
+			std::cout << "change: " << change << std::endl;
 		for (std::size_t c = 0; c != this-> mem_info[mem_id].list_points.size(); c ++) {
 			this-> mem_info[mem_id].list_points[c] += change;
 		}
@@ -534,7 +535,8 @@ void mdl::tagged_memory::save_mem_info(echar_t const *__file_path, echar_t const
     FILE *ofile = fopen(full_path, "wb");
     FILE *eofile = fopen(efull_path, "wb");
 
-    std::cout << sizeof(tagged_memory::mem_info_t) << std::endl;
+	if (this-> debug_logging)
+    	std::cout << sizeof(tagged_memory::mem_info_t) << std::endl;
 
     arc ac(ofile, 'w');
     for (std::size_t i = 0; i != this-> mem_info.size(); i ++) {
@@ -593,14 +595,16 @@ void mdl::tagged_memory::load_mem_info(echar_t const *__file_path, echar_t const
     std::size_t mem_info_vc = (file_size / es);
 
     this-> mem_info.resize(mem_info_vc);
-    std::cout << "p->" << mem_info_vc << std::endl;
+	if (this-> debug_logging)
+		std::cout << "p->" << mem_info_vc << std::endl;
     // change to read
     ac | 'r';
 
     for (std::size_t i = 0; i != mem_info_vc; i ++) {
         //fread(&this-> mem_info[i], sizeof(tagged_memory::mem_info_t), 1, ifile);
         this-> mem_info[i].__arc(ac);
-        std::cout << "<--->" << std::endl;
+        if (this-> debug_logging)
+			std::cout << "<--->" << std::endl;
 
         std::size_t s = 0;
         s = this-> mem_info[i].vec_lens[0];
@@ -694,7 +698,9 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
 
     echar_t *aft = static_cast<echar_t *>(malloc(after_len * sizeof(echar_t)));
     memset(aft, '\0', after_len * sizeof(echar_t));
-    std::cout << "change: " << change << std::endl;
+
+	if (this-> debug_logging)
+    	std::cout << "change: " << change << std::endl;
 
     uint_t nmlen = this-> get_mem_name_len(mem_location, __error);
 
@@ -822,7 +828,10 @@ mdl::echar_t *mdl::tagged_memory::dump_stack_memory(bool __return)
 
         if (this-> debug_logging)
             printf("\x1B[0m%c\x1B[32m|\x1B[0m", this-> mem_stack_get(i));
-    } printf("\n");
+    }
+
+	if (this-> debug_logging)
+		printf("\n");
 
     /* if we are only wanting it to print to the terminal then __return = false
     */
@@ -923,7 +932,8 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
 	if (__id_cache.caching && __id_cache.locked_list)
 		if (__id_cache.call_count != 0) goto skip_list_check;
 
-	std::cout << "-------------------------------------------------------------------------------oo" << std::endl;
+	if (this-> debug_logging)
+		std::cout << "-------------------------------------------------------------------------------oo" << std::endl;
 
 	/* check if there list addr tags
 	*/
@@ -1281,7 +1291,8 @@ mdl::echar_t *mdl::tagged_memory::get_mem_name(uint_t __addr, bool& __error)
 
     __name[o] = '\0';
 
-    std::cout << "get name = " << __name << std::endl;
+	if (this-> debug_logging)
+    	std::cout << "get name = " << __name << std::endl;
     return __name;
 }
 
@@ -1324,7 +1335,8 @@ mdl::uint_t mdl::tagged_memory::get_mem_addr(echar_t const *__name, bool& __erro
 {
     std::size_t length_of_name = strlen(__name);
 
-    std::cout << "len ~ " << length_of_name << std::endl;
+	if (this-> debug_logging)
+    	std::cout << "len ~ " << length_of_name << std::endl;
 
     std::size_t mem_addrs_pos = 0;
     std::size_t mem_match_count = 0;
@@ -1341,7 +1353,8 @@ mdl::uint_t mdl::tagged_memory::get_mem_addr(echar_t const *__name, bool& __erro
         else
             reduction = 0;
 
-        std::cout << "reduc : " << reduction << std::endl;
+		if (this-> debug_logging)
+        	std::cout << "reduc : " << reduction << std::endl;
         if (this-> debug_logging)
             printf("\x1B[34msearching mem addr book at id %ld for '%s'\x1B[0m\n", mem_addrs_pos, __name);
         for (size_t i = ((* itor)[0] + 1); i != (* itor)[1] - reduction; i ++) {
@@ -1739,7 +1752,8 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(uint_t __addr, std::size_t __ad,
 {
     if (! this-> is_mem_addr_ok(__addr)) { __error = true; return '\0';}
 
-    std::cout << "addr returned = " << __addr << std::endl;
+	if (this-> debug_logging)
+    	std::cout << "addr returned = " << __addr << std::endl;
 
     ublas::vector<boost::array<uint_t, 2>>::iterator itor = this-> mem_addrs.begin();
 
