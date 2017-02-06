@@ -10,3 +10,6 @@
 [submodule "eint_t"]
 	path = eint_t
 	url = git://github.com/mrdoomlittle/eint_t
+[submodule "echar_t"]
+	path = echar_t
+	url = git@github.com:mrdoomlittle/echar_t.git
