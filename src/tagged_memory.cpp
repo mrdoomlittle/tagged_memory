@@ -1535,15 +1535,13 @@ mdl::echar_t *mdl::tagged_memory::extract_list_addr(echar_t const * __name,
 
     std::free(list_point);
 
-	// dont know why sizeof(echar_t) is at the end.
-    std::size_t length_of_name = ((strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1) * sizeof(echar_t);
-
+	// NOTE: any error/s add * sizeof(echar_t) at the end of this.
+    std::size_t length_of_name = ((strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1);
     echar_t * name = static_cast<echar_t *>(malloc(length_of_name + 1 * sizeof(echar_t)));
     memset(name, '\0', length_of_name + 1 * sizeof(echar_t));
 
-    for (std::size_t i = 0; i != (strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1; i ++) {
+    for (std::size_t i = 0; i != (strlen(__name) - (__ltaddr_e - __ltaddr_b)) - 1; i ++)
         name[i] = __name[i];
-    }
 
     return name;
 }

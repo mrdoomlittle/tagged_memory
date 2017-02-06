@@ -1,1 +1,9 @@
 -> replace atoi and strlen with somthing that uses echar_t
+-> clean up code, also rename id_cache_t info_cache_t
+-> implement info_cache_t more e.g. set_mem_value and others.
+-> create function to handle debug output. e.g. debug_print("", ...);
+-> add a new function to inspect the stack.
+-> update analyze_stack_memory & add_mem_tag
+-> add function to swap the variables data.
+-> reduce the time taken to set and get variables & list elements.
+-> add function error_print("", ...);
