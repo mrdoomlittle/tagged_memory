@@ -13,3 +13,6 @@
 [submodule "echar_t"]
 	path = echar_t
 	url = git@github.com:mrdoomlittle/echar_t.git
+[submodule "termio"]
+	path = termio
+	url = git@github.com:mrdoomlittle/termio.git
