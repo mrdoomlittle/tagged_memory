@@ -23,7 +23,7 @@
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG 0x27
 # define STR_END_TAG 0x27
-
+# define NO_CACHING
 // NOTE: you can change the size
 constexpr mdl::echar_t COMMENT_BTAG[2] = {'/', '*'};
 constexpr mdl::echar_t COMMENT_ETAG[2] = {'*', '/'};
@@ -79,7 +79,14 @@ namespace mdl { class tagged_memory
 
     typedef struct {
         bool caching = false;
+		bool same_mem_id = false;
+		bool same_mem_addr = false;
+		bool same_mem_name = false;
+		bool same_val_len = false;
+		bool same_name_len = false;
 
+		bool cnt_list_pointer = false;
+		bool cnt_mem_nme_len = false;
 		/* the id of the memory
 		*/
         std::size_t mem_id = 0;
@@ -101,6 +108,10 @@ namespace mdl { class tagged_memory
 		std::size_t mem_nme_len = 0;
 
 		bool mem_addr_ok = false;
+
+		echar_t *mem_value = nullptr;
+
+		std::size_t value_len = 0;
 
 		echar_t *mem_name = nullptr;
 		std::size_t list_pointer = 0;
@@ -246,7 +257,7 @@ namespace mdl { class tagged_memory
     /* set the name of the memory */
     void set_mem_name(echar_t const *__current_name, echar_t const *__name, bool& __error);
 
-    void set_mem_value(echar_t const *__name, echar_t const *__value, bool& __error, uint_t __list_addr);
+    void set_mem_value(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, bool& __error, uint_t __list_addr);
 
     /* set the value of the memory */
     void set_mem_value(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, bool& __error);

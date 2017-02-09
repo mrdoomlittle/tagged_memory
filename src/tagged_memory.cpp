@@ -627,7 +627,7 @@ void mdl::tagged_memory::load_mem_info(echar_t const *__file_path, echar_t const
     std::free(efull_path);
 }
 
-void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__value, bool& __error, uint_t __list_addr)
+void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, bool& __error, uint_t __list_addr)
 {
     /* NOTE: when setting a list element it does not directly edit the stack, but gets the value of the
     * variable changes it and then use the set_mem_value without list enabled
@@ -635,24 +635,71 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
 
     /* get the current value of the pice of memory
     */
-    echar_t *tmp = this-> get_mem_value(__name, null_idc, __error, 0, true);
+	echar_t *tmp = nullptr;
 
-    /* calulate the length of the string
+	/* calulate the length of the string
     */
-    std::size_t nx_length = strlen(__value);
+	std::size_t nx_length = 0;
 
-    /* get the memory location e.g. the beginning address
+	/* get the memory location e.g. the beginning address
     */
-    uint_t mem_location = this-> get_mem_addr(__name, __error);
+    uint_t mem_location = 0;
 
-    /* how many itorator ++ is there needed for that pice of memory
+	/* how many itorator ++ is there needed for that pice of memory
     */
-    std::size_t ad = find_mem_addr_it_pos(mem_location, __error);
+    std::size_t ad = 0;
 
+	nx_length = strlen(__value);
+# ifndef NO_CACHING
+	if (__id_cache.caching && __id_cache.call_count == 0) {
+    	tmp = this-> get_mem_value(__name, null_idc, __error, 0, true);
+		mem_location = this-> get_mem_addr(__name, __error);
+		ad = find_mem_addr_it_pos(mem_location, __error);
+
+		__id_cache.mem_value = tmp;
+		if (__id_cache.same_mem_addr)
+			__id_cache.mem_addr = mem_location;
+
+		if (__id_cache.same_mem_id)
+			__id_cache.mem_id = ad;
+	}
+
+	if (__id_cache.caching && __id_cache.call_count != 0) {
+		tmp = __id_cache.mem_value;
+
+
+		if (__id_cache.same_mem_addr)
+			mem_location = __id_cache.mem_addr;
+		else
+			mem_location = this-> get_mem_addr(__name, __error);
+
+		if (__id_cache.same_mem_id)
+			ad = __id_cache.mem_id;
+		else
+			ad = find_mem_addr_it_pos(mem_location, __error);
+	}
+
+	if (!__id_cache.caching) {
+		tmp = this-> get_mem_value(__name, null_idc, __error, 0, true);
+        nx_length = strlen(__value);
+        mem_location = this-> get_mem_addr(__name, __error);
+        ad = find_mem_addr_it_pos(mem_location, __error);
+	}
+# else
+	tmp = this-> get_mem_value(__name, null_idc, __error, 0, true);
+	nx_length = strlen(__value);
+	mem_location = this-> get_mem_addr(__name, __error);
+	ad = find_mem_addr_it_pos(mem_location, __error);
+# endif
 	if (__list_addr < 0 || __list_addr >= this-> mem_info[ad].len_of_list) {
 		__error = true;
 		return;
 	}
+
+	/* get the length of the current value not the one passed thru function
+    */
+    std::size_t tlen = strlen(tmp);
+
 
     /* what is the length of the list
     */
@@ -664,10 +711,6 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
     */
     uint_t start = this-> mem_info[ad].list_points[__list_addr];
 
-    /* get the length of the current value not the one passed thru function
-    */
-    std::size_t tlen = strlen(tmp);
-
     uint_t after_len = 0;
 
     std::size_t o = 0;
@@ -677,7 +720,16 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
             o ++;
         }
 
+		if (__id_cache.caching) {
+			if (__id_cache.call_count == __id_cache.call_amount) {
+				__id_cache.call_count = 0;
+				std::free(tmp);
+			 } else
+				__id_cache.call_count += 1;
+		} else {
+
         std::free(tmp);
+		}
         return;
     }
 
@@ -721,7 +773,8 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
         o ++;
     }
 
-    this-> set_mem_value(__name, aft, null_idc, __error);
+	//printf("hello");
+    this-> set_mem_value(__name, aft, __id_cache, __error);
 
     for (std::size_t i = __list_addr + 1; i != this-> mem_info[ad].list_points.size(); i ++) {
         if (g) this-> mem_info[ad].list_points(i) += change;
@@ -730,8 +783,12 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
 
     if (g) this-> mem_info[ad].list_elength(__list_addr) += change;
     if (l) this-> mem_info[ad].list_elength(__list_addr) -= change;
+//	if (!__id_cache.caching)
+    	 std::free(tmp);
+//	else {
+//		if (__id_cache.call_count == 0) std::free(tmp);
+//	}
 
-    std::free(tmp);
     std::free(aft);
 }
 
@@ -898,6 +955,7 @@ mdl::echar_t *mdl::tagged_memory::create_mem_tag(echar_t const *__name, echar_t 
 
 mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_t& __id_cache, bool& __error, uint_t __list_addr, bool __no_list)
 {
+	//printf("%d hello\n", __no_list);
 	if (ILLEGAL_CHARS) {
 		if (this-> is_there_illegals(__name)) {
 			__error = true;
@@ -916,10 +974,10 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
     bool fb_list = false, fe_list = false;
 
 	std::size_t list_pointer = 0;
-
+# ifndef NO_CACHING
 	if (__id_cache.caching && __id_cache.locked_list)
 		if (__id_cache.call_count != 0) goto skip_list_check;
-
+# endif
 	/* check if there list addr tags
 	*/
 	if (__no_list) {
@@ -937,7 +995,7 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
             }
 		}
     }
-
+# ifndef NO_CACHING
 	skip_list_check:
 
 	if (__id_cache.caching && __id_cache.locked_list) {
@@ -951,7 +1009,7 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
 		}
 	}
 
-	if (! __id_cache.caching) {
+	if (!__id_cache.caching) {
 
 		 if (fb_list && fe_list) {
 			mem_name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
@@ -972,22 +1030,66 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
 			mem_id = this-> find_mem_addr_it_pos(mem_addr, __error);
 			mem_nme_len = this-> get_mem_name_len(mem_addr, __error);
 
-			__id_cache.mem_name = mem_name;
-			__id_cache.list_pointer = list_pointer;
-			__id_cache.mem_addr = mem_addr;
-			__id_cache.mem_id = mem_id;
-			__id_cache.mem_nme_len = mem_nme_len;
+			if (__id_cache.same_mem_name)
+				__id_cache.mem_name = mem_name;
+
+			if (__id_cache.cnt_list_pointer)
+				__id_cache.list_pointer = list_pointer;
+
+			if (__id_cache.same_mem_addr)
+				__id_cache.mem_addr = mem_addr;
+
+			if (__id_cache.same_mem_id)
+				__id_cache.mem_id = mem_id;
+
+			if (__id_cache.cnt_mem_nme_len)
+				__id_cache.mem_nme_len = mem_nme_len;
 
 			if (__id_cache.locked_list)
 				__id_cache.call_amount ++;
 		} else {
-			mem_name = __id_cache.mem_name;
-			list_pointer = __id_cache.list_pointer;
-			mem_addr = __id_cache.mem_addr;
-			mem_id = __id_cache.mem_id;
-			mem_nme_len = __id_cache.mem_nme_len;
+			if (__no_list) {
+
+			if (__id_cache.same_mem_name)
+				mem_name = __id_cache.mem_name;
+			else {
+				std::size_t tmp_lpointer = 0;
+				//printf("a");
+				mem_name = this-> extract_list_addr(__name, tmp_lpointer, ltaddr_b, ltaddr_e);
+				//printf("b");
+				if (!__id_cache.cnt_list_pointer) list_pointer = tmp_lpointer;
+			}
+
+			if (__id_cache.cnt_list_pointer)
+				list_pointer = __id_cache.list_pointer;
+			}
+
+			if (__id_cache.same_mem_addr)
+				mem_addr = __id_cache.mem_addr;
+			else
+				mem_addr = this-> get_mem_addr(mem_name, __error);
+
+			if (__id_cache.same_mem_id)
+				mem_id = __id_cache.mem_id;
+			else
+				mem_id = this-> find_mem_addr_it_pos(mem_addr, __error);
+
+			if (__id_cache.cnt_mem_nme_len)
+				mem_nme_len = __id_cache.mem_nme_len;
+			else
+				mem_nme_len = this-> get_mem_name_len(mem_addr, __error);
 		}
 	}
+# else
+	if ((fb_list && fe_list) && __no_list) {
+		mem_name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
+	} else { mem_name = const_cast<char *>(__name); }
+
+	mem_addr = this-> get_mem_addr(mem_name, __error);
+    mem_id = this-> find_mem_addr_it_pos(mem_addr, __error);
+    mem_nme_len = this-> get_mem_name_len(mem_addr, __error);
+# endif
+
 	if (!__no_list) {
 		if (__list_addr < 0 || __list_addr >= this-> mem_info[mem_id].len_of_list) {
 			__error = true;
@@ -995,22 +1097,28 @@ mdl::echar_t *mdl::tagged_memory::get_mem_value(echar_t const *__name, id_cache_
 		}
 	}
 
+# ifndef NO_CACHING
 	if (__no_list && __id_cache.caching) {
         if (__id_cache.call_count == __id_cache.call_amount) {
             __id_cache.call_count = 0;
-			if (__id_cache.mem_name != nullptr)
-				std::free(__id_cache.mem_name);
-		} else
+			if (mem_name != nullptr && __id_cache.same_mem_name)
+				std::free(mem_name);
+		} else 
             __id_cache.call_count ++;
     }
-
+# endif
 	//std::cout << mem_addr << ", " << ad << ", " << list_pointer << ", -------> " << __id_cache.call_count << " / " << __id_cache.call_amount << std::endl;
 
-	if (fb_list && fe_list) {
+	if ((fb_list && fe_list) && __no_list) {
+	
 		echar_t *tmp = this-> get_mem_value(mem_name, __id_cache, __error, list_pointer, false);
-
-		if (!__id_cache.caching && !__id_cache.locked_list) std::free(mem_name);
-
+# ifndef NO_CACHING
+		//if (mem_name != nullptr) std::free(mem_name);
+		if (__id_cache.caching && !__id_cache.same_mem_name) { std::free(mem_name);} else {
+		if (!__id_cache.caching && !__id_cache.locked_list) std::free(mem_name);}
+# else
+		std::free(mem_name);
+# endif
 		return tmp;
 	}
 
@@ -1531,7 +1639,8 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
         std::size_t list_pointer = 0;
         echar_t * name = this-> extract_list_addr(__name, list_pointer, ltaddr_b, ltaddr_e);
 
-        this-> set_mem_value(name, __value, __error, list_pointer);
+		//printf("%d\n", __id_cache.call_count);
+        this-> set_mem_value(name, __value, __id_cache, __error, list_pointer);
 
         std::free(name);
 
@@ -1539,17 +1648,24 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
     }
 
     uint_t mem_location = 0;
-
+# ifndef NO_CACHING
     if (! __id_cache.caching)
         mem_location = this-> get_mem_addr(__name, __error);
     else {
         if (__id_cache.call_count == 0) {
-            mem_location = this-> get_mem_addr(__name, __error);
-            __id_cache.mem_addr = mem_location;
-        } else
-            mem_location = __id_cache.mem_addr;
-    }
+			mem_location = this-> get_mem_addr(__name, __error);
 
+            if (__id_cache.same_mem_addr)
+				__id_cache.mem_addr = mem_location;
+        } else
+			if (__id_cache.same_mem_addr)
+            	mem_location = __id_cache.mem_addr;
+			else
+				mem_location = this-> get_mem_addr(__name, __error);
+    }
+# else
+	mem_location = this-> get_mem_addr(__name, __error);
+# endif
     bool found_list_indec_tags = false;
 
     ublas::vector<boost::array<uint_t, 2>>::iterator itor = this-> mem_addrs.begin();
@@ -1561,9 +1677,14 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
     else {
         if (__id_cache.call_count == 0) {
             ad = find_mem_addr_it_pos(mem_location, __error);
-            __id_cache.mem_id = ad;
-        } else
-            ad = __id_cache.mem_id;
+			if (__id_cache.same_mem_id)
+            	__id_cache.mem_id = ad;
+        } else {
+			if (__id_cache.same_mem_id)
+            	ad = __id_cache.mem_id;
+			else
+				ad = find_mem_addr_it_pos(mem_location, __error);
+		}
     }
 
     itor += ad;
@@ -1649,14 +1770,14 @@ void mdl::tagged_memory::set_mem_value(echar_t const *__name, echar_t const *__v
 
         }
     }
-
+# ifndef NO_CACHING
     if (__id_cache.caching) {
         if (__id_cache.call_count == __id_cache.call_amount)
             __id_cache.call_count = 0;
         else
             __id_cache.call_count += 1;
 	}
-
+# endif
     std::size_t before = (* itor)[1];
     (* itor)[1] = ((* itor)[0] + strlen(__value) + (length_of_name + 1));
 

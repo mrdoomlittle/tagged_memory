@@ -38,11 +38,11 @@ int main() {
 	// benchmark test 0
 	sw_begin_set();
 
-	example.dump_into_stack("{benchmark_list;LIST,LIST,LIST,LIST}{benchmark_string;NULL}");
+	example.dump_into_stack("{benchmark_list<4>;LIST,LIST,LIST,LIST}{benchmark_string;NULL}");
 
 	sw_end_set();
 	sw_cal_time();
-	print_result("dump_info_stack", "{benchmark_list;LIST,LIST,LIST,LIST}{benchmark_string;NULL}");
+	print_result("dump_info_stack", "{benchmark_list<4>;LIST,LIST,LIST,LIST}{benchmark_string;NULL}");
 
 	// benchmark test 1
 	sw_begin_set();
