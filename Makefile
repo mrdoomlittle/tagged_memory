@@ -18,11 +18,13 @@ install:
 	cp inc/tagged_memory.hpp /usr/local/include
 	cp lib/libtagged_memory.a /usr/local/lib
 
-clean:
+lib_clean:
 	cd termio; make clean; cd ../;
 	cd intlen; make clean; cd ../;
 	cd getdigit; make clean; cd ../;
 	cd to_string; make clean; cd ../;
+
+clean:
 	rm -f bin/*
 	rm -f src/*.o
 	rm -f lib/*.a
