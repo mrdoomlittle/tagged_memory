@@ -11,7 +11,7 @@
 # define MEM_BEGIN_TAG '{'
 # define MEM_END_TAG '}'
 
-# define MEM_MIDDLE_TAG ';'
+# define MEM_MID_TAG ';'
 
 # define LIST_LEN_BTAG '<'
 # define LIST_LEN_ETAG '>'
@@ -20,6 +20,7 @@
 // note this does not work
 # define BLANK_MEMORY ' '
 # define USED_MEMORY '@'
+# define NULL_MEM 0x0
 // NOTE: the STR Begin and End are '
 # define STR_BEGIN_TAG 0x27
 # define STR_END_TAG 0x27
@@ -46,6 +47,9 @@ constexpr mdl::echar_t COMMENT_ETAG[2] = {'*', '/'};
 # define MEM_MOVF 0x0
 # define MEM_MOVB 0x1
 
+# define TMEM_SUCCESS 0
+# define TMEM_FAILURE -1
+# define TMEM_NOP 1
 /* check for illegal chars
 */
 # define ILLEGAL_CHARS false
@@ -67,7 +71,7 @@ namespace mdl { class tagged_memory
     public:
     // this will replace the bool error part
     typedef struct {
-        bool fatal_error = false;
+        boost::int8_t fatal_error = false;
     } error_info_t;
 
     typedef struct {
@@ -75,7 +79,7 @@ namespace mdl { class tagged_memory
         bool fcontains_data = false;
         echar_t *mem_info_file = '\0';
         echar_t *mem_addrs_file = '\0';
-    } extra_options_t;
+    } extra_opt_t;
 
     typedef struct {
         bool caching = false;
@@ -156,7 +160,7 @@ namespace mdl { class tagged_memory
 
     public:
     tagged_memory(uint_t __allocated_memory,
-        std::initializer_list<echar_t> __seporator_tags, extra_options_t __extra_options, bool __debug_logging = true);
+        std::initializer_list<echar_t> __sep_tags, extra_opt_t __extra_opt, bool __debug_enabled = true);
 
 	std::size_t find_free_memory(uint_t __mem_eaddr, uint_t& __end_point) {
 		bool found_free_mem = false;
@@ -183,7 +187,7 @@ namespace mdl { class tagged_memory
 		while (o != char_count)
 		{
 			for (std::size_t i = 0; i != 3; i ++) {
-				if (__chars[o] == this-> seporator_tags[i]) {
+				if (__chars[o] == this-> sep_tags[i]) {
 					return true;
 				}
 			}
@@ -200,7 +204,7 @@ namespace mdl { class tagged_memory
 
 //	void get_addr_info(uint_t __addr, addr_info_t& __addr_info, bool& __is_error);
 
-	void get_addr_spoints(uint_t __addr, std::size_t& __mem_id, std::size_t& __list_id, bool& __is_error);
+	void get_addr_spoints(uint_t __addr, std::size_t& __mem_id, std::size_t& __list_id, boost::int8_t& __is_error);
 
 	/* dump the memory stack to the terminal
 	*/
@@ -210,19 +214,19 @@ namespace mdl { class tagged_memory
 	*/
     char *combine_strings(echar_t const *__string_0, echar_t const *__string_1);
 
-    void analyze_stack_memory(bool& __error);
+    void analyze_stack(boost::int8_t& __error);
 
-    void dump_into_stack(echar_t const *__memory);
+    boost::int8_t stack_dump(echar_t const *__memory);
 
-    void dump_into_stack(ublas::vector<echar_t> __memory);
+    boost::int8_t stack_dump(ublas::vector<echar_t> __memory);
 
-    uint_t get_mem_addr(echar_t const *__name, bool& __error);
+    uint_t get_mem_addr(echar_t const *__name, boost::int8_t& __error);
 
-    std::size_t get_list_length(echar_t const *__name, bool& __error);
+    std::size_t get_list_length(echar_t const *__name, boost::int8_t& __error);
 
-	void add_to_list(echar_t const *__mem_name, std::size_t __amount, bool& __is_error);
+	void add_to_list(echar_t const *__mem_name, std::size_t __amount, boost::int8_t& __is_error);
 
-	void del_from_list(echar_t const *__mem_name, std::size_t __list_id, bool& __is_error);
+	void del_from_list(echar_t const *__mem_name, std::size_t __list_id, boost::int8_t& __is_error);
 
     void save_mem_addrs();
     void save_mem_addrs(echar_t const *__file_path, echar_t const *__file_name);
@@ -242,25 +246,25 @@ namespace mdl { class tagged_memory
 
     /* check the memory stack for a var thats matches a name
     */
-    bool does_mem_name_exist(echar_t const *__mem_name, bool& __error);
+    bool does_mem_name_exist(echar_t const *__mem_name, boost::int8_t& __error);
 
     bool compare_strings(echar_t const *__string_0, echar_t const *__string_1);
 
     /* compare the value of 2 pices of memory
     */
-    bool compare_mem_values(echar_t const *__mem_name_0, echar_t const *__mem_name_1, bool& __error);
+    bool compare_mem_values(echar_t const *__mem_name_0, echar_t const *__mem_name_1, boost::int8_t& __error);
 
     echar_t *create_mem_tag(echar_t const *__name, echar_t const *__value = "\0");
 
-    void add_mem_tag(echar_t const * __name, echar_t const * __value, size_t __null_space, bool& __error);
+    void add_mem_tag(echar_t const * __name, echar_t const * __value, size_t __null_space, boost::int8_t& __error);
 
     /* set the name of the memory */
-    void set_mem_name(echar_t const *__current_name, echar_t const *__name, bool& __error);
+    void set_mem_name(echar_t const *__current_name, echar_t const *__name, boost::int8_t& __error);
 
-    void set_mem_value(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, bool& __error, uint_t __list_addr);
+    void set_mem_val(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, boost::int8_t& __any_error, uint_t __list_addr);
 
     /* set the value of the memory */
-    void set_mem_value(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, bool& __error);
+    void set_mem_val(echar_t const *__name, echar_t const *__value, id_cache_t& __id_cache, boost::int8_t& __error);
 
     /* load the memory stack from a file */
     void load_mem_stack_from_file(echar_t const *__file_path, echar_t const *__file_name);
@@ -268,26 +272,26 @@ namespace mdl { class tagged_memory
     void save_mem_stack_to_file(echar_t const *__file_path, echar_t const *__file_name);
 
     /* get the name of the memory from a id/address */
-    echar_t *get_mem_name(uint_t __addr, bool& __error);
+    echar_t *get_mem_name(uint_t __addr, boost::int8_t& __error);
 
-    echar_t *get_mem_value(echar_t const *__name, id_cache_t& __id_cache, bool& __error, uint_t __list_addr = 0, bool __no_list = true);
+    echar_t *get_mem_val(echar_t const *__name, id_cache_t& __id_cache, boost::int8_t& __any_error, uint_t __list_addr = 0, bool __no_list = true);
 
     /* get the value of the memory from a id/address */
-    char *get_mem_value(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, bool& __error, uint_t __list_addr, bool __no_list = true);
+    char *get_mem_val(uint_t __addr, std::size_t __ad, std::size_t __mem_nm_len, boost::int8_t& __any_error, uint_t __list_addr, bool __no_list = true);
 
     /* find the address corresponding to the one passed thru and return the amount
     * that the iterator should be iterated
     */
-    std::size_t find_mem_addr_it_pos(uint_t __addr, bool& __error);
+    std::size_t find_mem_addr_it_pos(uint_t __addr, boost::int8_t& __error);
 
 	// NOTE: swap find_mem_addr_it_pos with get_mem_id
-    std::size_t  get_mem_id(uint_t __addr, bool& __error) {
+    std::size_t  get_mem_id(uint_t __addr, boost::int8_t& __error) {
         return this-> find_mem_addr_it_pos(__addr, __error);
     }
 
     /* starting from the start get the length from { to :
     */
-    std::size_t get_mem_name_len(uint_t __addr, bool& __error);
+    std::size_t get_mem_name_len(uint_t __addr, boost::int8_t& __error);
 
     /* see if we can find the address passed thru in 'mem_addrs' vector at arr pos 0
     * if there is a match then we are returning true else false for no match
@@ -298,21 +302,21 @@ namespace mdl { class tagged_memory
     /* insert a char into the memory stack. the memory thats allready there will be shifted forward
     * this includes all the memory after the address
     */
-    void insert_into_mem_stack(echar_t __mem, uint_t __addr, bool& __error);
+    void insert_into_mem_stack(echar_t __mem, uint_t __addr, boost::int8_t& __error);
 
     /* remove a pice of memory from the stack and then shift all the memory in the stack after the address
     * to fill in the free space.
     */
-    void uninsert_from_mem_stack(uint_t __addr, bool& __error);
+    void uninsert_from_mem_stack(uint_t __addr, boost::int8_t& __error);
 
     echar_t *extract_list_addr(echar_t const *__name, std::size_t& list_pointer, std::size_t __ltaddr_b, std::size_t __ltaddr_e);
 
 	void mem_stack_insert(echar_t __mem, uint_t __addr);
 	void mem_stack_uninsert(uint_t __addr);
 
-	void set_mem_list_len(echar_t const *__mem_name, std::size_t __list_len, bool& __is_error);
+	void set_mem_list_len(echar_t const *__mem_name, std::size_t __list_len, boost::int8_t& __is_error);
 
-	std::size_t get_mem_list_len(echar_t const *__mem_name, bool __cached_ver, bool& __is_error);
+	std::size_t get_mem_list_len(echar_t const *__mem_name, bool __cached_ver, boost::int8_t& __is_error);
 
 	bool get_mem_list_addrs(uint_t __mem_addr, std::size_t __mem_id, std::size_t *__list_addrs);
 
@@ -357,7 +361,7 @@ namespace mdl { class tagged_memory
 
         error_info_t *error_info;
         uint_t addr = 0;
-        bool error = false;
+        boost::int8_t error = false;
         std::size_t len = 0;
         std::size_t const element_id = 0;
         tagged_memory *_this = nullptr;
@@ -378,7 +382,7 @@ namespace mdl { class tagged_memory
                 this-> mem_stack_set(USED_MEMORY, i);
     }
 
-    void mem_free(echar_t const *__mem_name, bool& __error, bool __clean = false) {
+    void mem_free(echar_t const *__mem_name, boost::int8_t& __error, bool __clean = false) {
         uint_t addr = this-> get_mem_addr(__mem_name, __error);
         uint_t pos = this-> find_mem_addr_it_pos(addr, __error);
 
@@ -404,7 +408,7 @@ namespace mdl { class tagged_memory
         mem_addrs.resize(mem_addrs.size() - 1);
     }
 
-    void mem_mov(echar_t const *__mem_name, uint_t __mov_amount, boost::uint8_t __direction, bool& __error) {
+    void mem_mov(echar_t const *__mem_name, uint_t __mov_amount, boost::uint8_t __direction, boost::int8_t& __error) {
         uint_t addr = this-> get_mem_addr(__mem_name, __error);
         uint_t pos = this-> find_mem_addr_it_pos(addr, __error);
 
@@ -459,19 +463,19 @@ namespace mdl { class tagged_memory
     }
 
     private:
-    extra_options_t extra_options;
+    extra_opt_t extra_opt;
 
     /* NOTE: need to up update this.
     */
     enum sp_t : boost::uint8_t { __mem_begin, __mem_middle, __mem_end };
 
-    bool debug_logging = false;
+    bool debug_enabled = false;
 
     /* each tag will be stored in this array,
     * NOTE: any changes to this will be automaticly used.
     * NOTE: need to update this
     */
-    boost::array<echar_t, 6> seporator_tags;
+    boost::array<echar_t, 6> sep_tags;
 
     /* NOTE: need to get this working
     */
