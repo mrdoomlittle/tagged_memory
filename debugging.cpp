@@ -17,13 +17,13 @@ int main() {
 	mdl::tagged_memory::extra_opt_t options;
 	mdl::tmem_t example(128, {'{', ';', '}'}, options, true);
 
-	if (example.stack_dump("{example_0<2>;NULL,21299}        {example_1<2>;a,b}") != TMEM_SUCCESS) {
-		// error
+	if (example.stack_dump(";{example_0<2>;NULL,21299}        {example_1<2>;a,b}") != TMEM_SUCCESS) {
+		return 0;
 	}
 
 	example.analyze_stack(any_error);
 	if (any_error != TMEM_SUCCESS) {
-		// error
+		return 0;
 	}
 
 	char *mem_val = example.get_mem_val("example_0<1>", mdl::null_idc, any_error);

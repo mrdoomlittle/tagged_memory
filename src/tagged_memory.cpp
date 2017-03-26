@@ -1737,7 +1737,10 @@ std::size_t mdl::tagged_memory::get_list_length(echar_t const *__name, boost::in
 
 void mdl::tagged_memory::analyze_stack(boost::int8_t& __any_error)
 {
-    if (this-> mem_stack.size() == 0) return;
+    if (this-> mem_stack.size() == 0) {
+		__any_error = TMEM_NOP;
+		return;
+	}
 
     bool found_mem_begin_ts = false;
     bool found_mem_end_ts = false;
@@ -1753,7 +1756,7 @@ void mdl::tagged_memory::analyze_stack(boost::int8_t& __any_error)
 
     uint_t stack_length = this-> mem_stack.size();
     std::size_t last_lpoint = 0;
-    float one_precent = (100.00/stack_length);
+    float one_precent = 100.00/stack_length;
     uint_t mid_tag_addr = 0;
     bool found_mid_tag = false;
     std::size_t list_sep_tcount = 0;
@@ -1764,6 +1767,39 @@ void mdl::tagged_memory::analyze_stack(boost::int8_t& __any_error)
 
     bool comment_begin_tag = false;
     uint_t comment_begin_eaddr = 0;
+
+	uint_t stack_point = 0;
+	uint_t bsep_tcount = 0, esep_tcount = 0, msep_tcount = 0;
+	while(stack_point != this-> mem_stack.size()) {
+		echar_t mem_pice = this-> mem_stack_get(mem_stack_pos);
+
+		if (mem_pice == '\0') break;
+
+		if (mem_pice == this-> sep_tags[sp_t::__mem_middle]) msep_tcount++;
+		if (mem_pice == this-> sep_tags[sp_t::__mem_begin]) bsep_tcount++;
+		if (mem_pice == this-> sep_tags[sp_t::__mem_end]) esep_tcount++;
+
+		stack_point ++;
+	}
+
+	if (bsep_tcount != esep_tcount) {
+		if (bsep_tcount > esep_tcount)
+			fprintf(stderr, "there seems to be too many beginning tags.\n");
+		else
+			fprintf(stderr, "there seems to be too many ending tags.");
+		__any_error = TMEM_FAILURE;
+		return;
+	}
+
+	if (msep_tcount != bsep_tcount) {
+		if (msep_tcount > bsep_tcount)
+			fprintf(stderr, "there seems to be too many mid tags.\n");
+		else
+			fprintf(stderr, "there seems to be not enough mid tags.\n");
+		__any_error = TMEM_FAILURE;
+		return;
+	}
+
     debug_print(this-> debug_enabled, "\x1B[36manalysing the memory stack, please wait ...\x1B[0m\n");
     do
     {
