@@ -1,7 +1,6 @@
 CURR_PATH=${CURDIR}
-LIB_PATH=
-INC=-I$(LIB_PATH)termio/inc -I$(LIB_PATH)echar_t/inc -I$(LIB_PATH)eint_t/inc -I$(LIB_PATH)intlen/inc -I$(LIB_PATH)getdigit/inc -I$(LIB_PATH)to_string/inc
-all: src/tagged_memory.o
+INC=-I$(CURR_PATH)/termio/inc -I$(CURR_PATH)/echar_t/inc -I$(CURR_PATH)/mdlint/inc -I$(CURR_PATH)/intlen/inc -I$(CURR_PATH)/getdigit/inc -I$(CURR_PATH)/to_string/inc
+all: libs src/tagged_memory.o
 	ar rcs lib/libtagged_memory.a src/tagged_memory.o
 	cp src/tagged_memory.hpp inc/tagged_memory.hpp
 
@@ -10,9 +9,9 @@ src/tagged_memory.o: src/tagged_memory.cpp
 
 libs:
 	cd termio; make; cd ../;
-	cd intlen; make ARC64 EINT_T_INC=$(CURR_PATH)/eint_t/inc; cd ../;
-	cd getdigit; make ARC64 EINT_T_INC=$(CURR_PATH)/eint_t/inc INTLEN_INC=$(CURR_PATH)/intlen/inc INTLEN_LIB=$(CURR_PATH)/intlen/lib; cd ../;
-	cd to_string; make ECHAR_T=$(CURR_PATH)/echar_t/inc EINT_T_INC=$(CURR_PATH)/eint_t/inc GETDIGIT_INC=$(CURR_PATH)/getdigit/inc INTLEN_INC=$(CURR_PATH)/intlen/inc GETDIGIT_LIB=$(CURR_PATH)/getdigit/lib INTLEN_LIB=$(CURR_PATH)/intlen/lib;
+	cd intlen; make ARC64 MDLINT_INC=$(CURR_PATH)/mdlint/inc; cd ../;
+	cd getdigit; make ARC64 MDLINT_INC=$(CURR_PATH)/mdlint/inc INTLEN_INC=$(CURR_PATH)/intlen/inc INTLEN_LIB=$(CURR_PATH)/intlen/lib; cd ../;
+	cd to_string; make ECHAR_T_INC=$(CURR_PATH)/echar_t/inc MDLINT_INC=$(CURR_PATH)/mdlint/inc GETDIGIT_INC=$(CURR_PATH)/getdigit/inc INTLEN_INC=$(CURR_PATH)/intlen/inc GETDIGIT_LIB=$(CURR_PATH)/getdigit/lib INTLEN_LIB=$(CURR_PATH)/intlen/lib;
 
 install:
 	cp inc/tagged_memory.hpp /usr/local/include

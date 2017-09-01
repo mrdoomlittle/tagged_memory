@@ -5,8 +5,8 @@
 # include <boost/cstdlib.hpp>
 # include <boost/cstdint.hpp>
 # include <initializer_list>
+# include <mdlint.h>
 # include <echar_t.hpp>
-# include <eint_t.hpp>
 # include <termio.hpp>
 # define MEM_BEGIN_TAG '{'
 # define MEM_END_TAG '}'
