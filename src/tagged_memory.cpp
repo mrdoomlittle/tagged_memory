@@ -1771,14 +1771,15 @@ void mdl::tagged_memory::analyze_stack(boost::int8_t& __any_error)
 	uint_t stack_point = 0;
 	uint_t bsep_tcount = 0, esep_tcount = 0, msep_tcount = 0;
 	while(stack_point != this-> mem_stack.size()) {
-		echar_t mem_pice = this-> mem_stack_get(mem_stack_pos);
+		echar_t mem_pice = this-> mem_stack_get(stack_point);
 
 		if (mem_pice == '\0') break;
 
 		if (mem_pice == this-> sep_tags[sp_t::__mem_middle]) msep_tcount++;
 		if (mem_pice == this-> sep_tags[sp_t::__mem_begin]) bsep_tcount++;
 		if (mem_pice == this-> sep_tags[sp_t::__mem_end]) esep_tcount++;
-
+//		printf("----> %c\n", mem_pice);
+//		mem_stack_pos++;
 		stack_point ++;
 	}
 
